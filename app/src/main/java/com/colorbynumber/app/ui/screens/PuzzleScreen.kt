@@ -303,11 +303,16 @@ private fun PuzzleGrid(
                 val userColorIdx = puzzleState.userColors[idx]
                 val targetRgb = puzzleState.palette[targetColorIdx]
 
-                val x = gridOriginX + col * cellSize
-                val y = gridOriginY + row * cellSize
+                // Snap to pixel boundaries to eliminate sub-pixel gaps between cells
+                val x = kotlin.math.floor(gridOriginX + col * cellSize)
+                val y = kotlin.math.floor(gridOriginY + row * cellSize)
+                val x2 = kotlin.math.floor(gridOriginX + (col + 1) * cellSize)
+                val y2 = kotlin.math.floor(gridOriginY + (row + 1) * cellSize)
+                val w = x2 - x
+                val h = y2 - y
 
                 // Skip cells completely outside the visible area
-                if (x + cellSize < 0 || x > size.width || y + cellSize < 0 || y > size.height) continue
+                if (x2 < 0 || x > size.width || y2 < 0 || y > size.height) continue
 
                 // Determine cell color
                 val cellColor: Color = if (userColorIdx != -1) {
@@ -330,29 +335,25 @@ private fun PuzzleGrid(
                 val isHighlighted = selectedColorIndex != null &&
                         targetColorIdx == selectedColorIndex && userColorIdx == -1
 
+                val cellRect = androidx.compose.ui.geometry.Size(w, h)
+
                 // Draw cell background
-                drawRect(
-                    color = cellColor,
-                    topLeft = Offset(x, y),
-                    size = androidx.compose.ui.geometry.Size(cellSize, cellSize)
-                )
+                drawRect(color = cellColor, topLeft = Offset(x, y), size = cellRect)
 
                 // Highlight overlay
                 if (isHighlighted) {
-                    drawRect(
-                        color = Color(0x40000000),
-                        topLeft = Offset(x, y),
-                        size = androidx.compose.ui.geometry.Size(cellSize, cellSize)
-                    )
+                    drawRect(color = Color(0x40000000), topLeft = Offset(x, y), size = cellRect)
                 }
 
-                // Grid lines
-                drawRect(
-                    color = Color(0x30000000),
-                    topLeft = Offset(x, y),
-                    size = androidx.compose.ui.geometry.Size(cellSize, cellSize),
-                    style = Stroke(width = 0.5f)
-                )
+                // Grid lines (only for uncolored cells)
+                if (userColorIdx == -1) {
+                    drawRect(
+                        color = Color(0x30000000),
+                        topLeft = Offset(x, y),
+                        size = cellRect,
+                        style = Stroke(width = 0.5f)
+                    )
+                }
 
                 // Draw number if zoomed in enough and cell is uncolored
                 if (showNumbers && userColorIdx == -1) {
@@ -367,8 +368,8 @@ private fun PuzzleGrid(
                     drawText(
                         textLayoutResult = textLayout,
                         topLeft = Offset(
-                            x + (cellSize - textLayout.size.width) / 2f,
-                            y + (cellSize - textLayout.size.height) / 2f
+                            x + (w - textLayout.size.width) / 2f,
+                            y + (h - textLayout.size.height) / 2f
                         )
                     )
                 }
