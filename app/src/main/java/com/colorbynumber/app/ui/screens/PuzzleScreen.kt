@@ -28,6 +28,7 @@ import com.colorbynumber.app.engine.PuzzleState
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
+import kotlinx.coroutines.withTimeoutOrNull
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,6 +58,11 @@ fun PuzzleScreen(
     // Build visible palette (exclude completed colors)
     val visiblePalette = remember(completedColors, updateTrigger) {
         puzzleState.paletteOrder.filter { it !in completedColors }
+    }
+
+    // Map colorIdx -> 1-based display number by paletteOrder position
+    val colorDisplayNumbers = remember {
+        puzzleState.paletteOrder.withIndex().associate { (i, ci) -> ci to (i + 1) }
     }
 
     Scaffold(
@@ -124,6 +130,7 @@ fun PuzzleScreen(
                     selectedColorIndex = if (isEraser) null else selectedColorIndex,
                     isEraser = isEraser,
                     updateTrigger = updateTrigger,
+                    colorDisplayNumbers = colorDisplayNumbers,
                     onCellTap = { row, col ->
                         if (isEraser) {
                             puzzleState.eraseCell(row, col)
@@ -147,6 +154,7 @@ fun PuzzleScreen(
                 visiblePalette = visiblePalette,
                 selectedColorIndex = selectedColorIndex,
                 isEraser = isEraser,
+                colorDisplayNumbers = colorDisplayNumbers,
                 onSelectColor = { ci ->
                     selectedColorIndex = ci
                     isEraser = false
@@ -166,6 +174,7 @@ private fun PuzzleGrid(
     selectedColorIndex: Int?,
     isEraser: Boolean,
     updateTrigger: Int,
+    colorDisplayNumbers: Map<Int, Int>,
     onCellTap: (row: Int, col: Int) -> Unit
 ) {
     val gridSize = puzzleState.gridSize
@@ -175,34 +184,104 @@ private fun PuzzleGrid(
     var scale by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
 
+    // Always use the latest callback without restarting the gesture coroutine
+    val currentOnCellTap by rememberUpdatedState(onCellTap)
+
     Canvas(
         modifier = Modifier
             .fillMaxSize()
             .pointerInput(Unit) {
-                detectTransformGestures { _, pan, zoom, _ ->
-                    val newScale = (scale * zoom).coerceIn(0.5f, 10f)
-                    scale = newScale
-                    offset = Offset(
-                        x = offset.x + pan.x,
-                        y = offset.y + pan.y
-                    )
-                }
-            }
-            .pointerInput(updateTrigger, selectedColorIndex, isEraser) {
-                detectTapGestures { tapOffset ->
-                    // Convert screen coordinates to grid coordinates
-                    val canvasSize = min(size.width.toFloat(), size.height.toFloat())
-                    val cellSize = (canvasSize / gridSize) * scale
-                    val gridPixelSize = cellSize * gridSize
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    var lastKnownPos = down.position
+                    var mode = GestureMode.UNDECIDED
+                    var lastCell: Pair<Int, Int>? = null
 
-                    val gridOriginX = (size.width - gridPixelSize) / 2f + offset.x
-                    val gridOriginY = (size.height - gridPixelSize) / 2f + offset.y
+                    // Phase 1: determine gesture type within 500ms
+                    // withTimeoutOrNull returns null on timeout (= long press), Unit on early exit
+                    val earlyExit = withTimeoutOrNull(500L) {
+                        while (true) {
+                            val event = awaitPointerEvent()
 
-                    val col = ((tapOffset.x - gridOriginX) / cellSize).toInt()
-                    val row = ((tapOffset.y - gridOriginY) / cellSize).toInt()
+                            if (event.changes.count { it.pressed } >= 2) {
+                                mode = GestureMode.ZOOMING
+                                break
+                            }
 
-                    if (row in 0 until gridSize && col in 0 until gridSize) {
-                        onCellTap(row, col)
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            lastKnownPos = change.position
+
+                            if (!change.pressed) {
+                                // Finger lifted before timeout = tap
+                                break
+                            }
+
+                            val dist = (change.position - down.position).getDistance()
+                            if (dist > viewConfiguration.touchSlop) {
+                                mode = GestureMode.PANNING
+                                break
+                            }
+                        }
+                        Unit
+                    }
+
+                    // null return = timeout = long press
+                    if (earlyExit == null) {
+                        mode = GestureMode.PAINTING
+                        val (row, col) = screenToCell(lastKnownPos, size.width.toFloat(), size.height.toFloat(), gridSize, scale, offset)
+                        if (row in 0 until gridSize && col in 0 until gridSize) {
+                            currentOnCellTap(row, col)
+                            lastCell = row to col
+                        }
+                    }
+
+                    // Quick tap: finger lifted during phase 1
+                    if (mode == GestureMode.UNDECIDED) {
+                        val (row, col) = screenToCell(down.position, size.width.toFloat(), size.height.toFloat(), gridSize, scale, offset)
+                        if (row in 0 until gridSize && col in 0 until gridSize) {
+                            currentOnCellTap(row, col)
+                        }
+                        return@awaitEachGesture
+                    }
+
+                    // Phase 2: handle active mode until all fingers lift
+                    while (true) {
+                        val event = awaitPointerEvent()
+
+                        if (event.changes.count { it.pressed } >= 2 && mode != GestureMode.ZOOMING) {
+                            mode = GestureMode.ZOOMING
+                        }
+
+                        when (mode) {
+                            GestureMode.ZOOMING -> {
+                                val zoomFactor = event.calculateZoom()
+                                val panDelta = event.calculatePan()
+                                scale = (scale * zoomFactor).coerceIn(0.5f, 10f)
+                                offset = Offset(offset.x + panDelta.x, offset.y + panDelta.y)
+                                event.changes.forEach { it.consume() }
+                            }
+                            GestureMode.PANNING -> {
+                                val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                                if (!change.pressed) break
+                                val delta = change.position - change.previousPosition
+                                offset = Offset(offset.x + delta.x, offset.y + delta.y)
+                                change.consume()
+                            }
+                            GestureMode.PAINTING -> {
+                                val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                                if (!change.pressed) break
+                                val (row, col) = screenToCell(change.position, size.width.toFloat(), size.height.toFloat(), gridSize, scale, offset)
+                                val cell = row to col
+                                if (row in 0 until gridSize && col in 0 until gridSize && cell != lastCell) {
+                                    currentOnCellTap(row, col)
+                                    lastCell = cell
+                                }
+                                change.consume()
+                            }
+                            else -> break
+                        }
+
+                        if (!event.changes.any { it.pressed }) break
                     }
                 }
             }
@@ -277,7 +356,7 @@ private fun PuzzleGrid(
 
                 // Draw number if zoomed in enough and cell is uncolored
                 if (showNumbers && userColorIdx == -1) {
-                    val number = (targetColorIdx + 1).toString()
+                    val number = (colorDisplayNumbers[targetColorIdx] ?: (targetColorIdx + 1)).toString()
                     val fontSize = (cellSize * 0.4f).coerceIn(4f, 24f)
                     val textStyle = TextStyle(
                         fontSize = fontSize.sp,
@@ -304,6 +383,7 @@ private fun PaletteBar(
     visiblePalette: List<Int>,
     selectedColorIndex: Int?,
     isEraser: Boolean,
+    colorDisplayNumbers: Map<Int, Int>,
     onSelectColor: (Int) -> Unit,
     onSelectEraser: () -> Unit
 ) {
@@ -374,7 +454,7 @@ private fun PaletteBar(
                         ) {
                             // Show the palette number
                             Text(
-                                text = "${colorIdx + 1}",
+                                text = "${colorDisplayNumbers[colorIdx] ?: (colorIdx + 1)}",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (isColorLight(rgb)) Color.Black else Color.White
@@ -391,6 +471,22 @@ private fun PaletteBar(
             }
         }
     }
+}
+
+private enum class GestureMode { UNDECIDED, PANNING, PAINTING, ZOOMING }
+
+private fun screenToCell(
+    pos: Offset, canvasWidth: Float, canvasHeight: Float,
+    gridSize: Int, scale: Float, offset: Offset
+): Pair<Int, Int> {
+    val canvasSize = min(canvasWidth, canvasHeight)
+    val cellSize = (canvasSize / gridSize) * scale
+    val gridPixelSize = cellSize * gridSize
+    val gridOriginX = (canvasWidth - gridPixelSize) / 2f + offset.x
+    val gridOriginY = (canvasHeight - gridPixelSize) / 2f + offset.y
+    val col = ((pos.x - gridOriginX) / cellSize).toInt()
+    val row = ((pos.y - gridOriginY) / cellSize).toInt()
+    return row to col
 }
 
 private fun isColorLight(rgb: Int): Boolean {
