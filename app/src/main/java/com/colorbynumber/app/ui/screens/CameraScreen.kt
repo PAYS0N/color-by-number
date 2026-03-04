@@ -33,10 +33,14 @@ fun CameraScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
 
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
+    var cameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
     val cameraExecutor: ExecutorService = remember { Executors.newSingleThreadExecutor() }
 
     DisposableEffect(Unit) {
-        onDispose { cameraExecutor.shutdown() }
+        onDispose {
+            cameraProvider?.unbindAll()
+            cameraExecutor.shutdown()
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -46,7 +50,8 @@ fun CameraScreen(
                 val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
 
                 cameraProviderFuture.addListener({
-                    val cameraProvider = cameraProviderFuture.get()
+                    val provider = cameraProviderFuture.get()
+                    cameraProvider = provider
 
                     val preview = Preview.Builder().build().also {
                         it.setSurfaceProvider(previewView.surfaceProvider)
@@ -60,8 +65,8 @@ fun CameraScreen(
                     val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
                     try {
-                        cameraProvider.unbindAll()
-                        cameraProvider.bindToLifecycle(
+                        provider.unbindAll()
+                        provider.bindToLifecycle(
                             lifecycleOwner, cameraSelector, preview, capture
                         )
                     } catch (e: Exception) {

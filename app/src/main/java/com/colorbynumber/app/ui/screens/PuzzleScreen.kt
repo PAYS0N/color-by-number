@@ -214,8 +214,8 @@ private fun PuzzleGrid(
         val gridOriginX = (size.width - gridPixelSize) / 2f + offset.x
         val gridOriginY = (size.height - gridPixelSize) / 2f + offset.y
 
-        // Determine if we should show numbers (based on zoom level / cell size)
-        val showNumbers = cellSize > 16f
+        // Determine if we should show numbers (based on zoom level)
+        val showNumbers = scale > 1.5f
 
         for (row in 0 until gridSize) {
             for (col in 0 until gridSize) {
@@ -235,8 +235,11 @@ private fun PuzzleGrid(
                     // User has colored this cell - show the actual color
                     val rgb = puzzleState.palette[userColorIdx]
                     Color(AndroidColor.red(rgb), AndroidColor.green(rgb), AndroidColor.blue(rgb))
+                } else if (showNumbers) {
+                    // Zoomed in: white background with number
+                    Color.White
                 } else {
-                    // Uncolored: show greyscale
+                    // Zoomed out: show greyscale
                     val r = AndroidColor.red(targetRgb)
                     val g = AndroidColor.green(targetRgb)
                     val b = AndroidColor.blue(targetRgb)
@@ -279,7 +282,7 @@ private fun PuzzleGrid(
                     val textStyle = TextStyle(
                         fontSize = fontSize.sp,
                         fontWeight = if (isHighlighted) FontWeight.Bold else FontWeight.Normal,
-                        color = if (isHighlighted) Color(0xFF333333) else Color(0xFF666666)
+                        color = Color.Black
                     )
                     val textLayout = textMeasurer.measure(number, textStyle)
                     drawText(
