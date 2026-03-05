@@ -22,6 +22,14 @@ class PuzzleState(
     var preventOverwrite: Boolean = true
 
     /**
+     * Optional listener invoked after every successful cell change.
+     * Parameters: row, col, colorIndex (-1 for erase), isErase.
+     *
+     * The repository subscribes to this to record placement events.
+     */
+    var onCellChanged: ((row: Int, col: Int, colorIndex: Int, isErase: Boolean) -> Unit)? = null
+
+    /**
      * Attempt to color a cell at [row], [col] with [colorIndex].
      * Returns true if the cell was colored, false if prevented.
      */
@@ -40,6 +48,7 @@ class PuzzleState(
         }
 
         userColors[idx] = colorIndex
+        onCellChanged?.invoke(row, col, colorIndex, false)
         return true
     }
 
@@ -50,6 +59,7 @@ class PuzzleState(
         val idx = row * gridSize + col
         if (idx in userColors.indices) {
             userColors[idx] = -1
+            onCellChanged?.invoke(row, col, -1, true)
         }
     }
 

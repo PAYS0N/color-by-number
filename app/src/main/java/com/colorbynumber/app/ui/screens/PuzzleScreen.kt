@@ -314,39 +314,52 @@ private fun PuzzleGrid(
                 // Skip cells completely outside the visible area
                 if (x2 < 0 || x > size.width || y2 < 0 || y > size.height) continue
 
-                // Determine cell color
-                val cellColor: Color = if (userColorIdx != -1) {
-                    // User has colored this cell - show the actual color
-                    val rgb = puzzleState.palette[userColorIdx]
-                    Color(AndroidColor.red(rgb), AndroidColor.green(rgb), AndroidColor.blue(rgb))
-                } else if (showNumbers) {
-                    // Zoomed in: white background with number
-                    Color.White
-                } else {
-                    // Zoomed out: show greyscale
-                    val r = AndroidColor.red(targetRgb)
-                    val g = AndroidColor.green(targetRgb)
-                    val b = AndroidColor.blue(targetRgb)
-                    val grey = (0.299 * r + 0.587 * g + 0.114 * b).toInt().coerceIn(0, 255)
-                    Color(grey, grey, grey)
+                val isCorrect = userColorIdx != -1 && userColorIdx == targetColorIdx
+                val isIncorrect = userColorIdx != -1 && userColorIdx != targetColorIdx
+
+                // Determine cell background color
+                val cellColor: Color = when {
+                    isCorrect -> {
+                        val rgb = puzzleState.palette[userColorIdx]
+                        Color(AndroidColor.red(rgb), AndroidColor.green(rgb), AndroidColor.blue(rgb))
+                    }
+                    showNumbers -> Color.White
+                    else -> {
+                        // Zoomed out: greyscale
+                        val r = AndroidColor.red(targetRgb)
+                        val g = AndroidColor.green(targetRgb)
+                        val b = AndroidColor.blue(targetRgb)
+                        val grey = (0.299 * r + 0.587 * g + 0.114 * b).toInt().coerceIn(0, 255)
+                        Color(grey, grey, grey)
+                    }
                 }
 
-                // Highlight cells matching selected color
+                // Highlight cells matching selected color (uncolored or incorrectly colored)
                 val isHighlighted = selectedColorIndex != null &&
-                        targetColorIdx == selectedColorIndex && userColorIdx == -1
+                        targetColorIdx == selectedColorIndex && !isCorrect
 
                 val cellRect = androidx.compose.ui.geometry.Size(w, h)
 
                 // Draw cell background
                 drawRect(color = cellColor, topLeft = Offset(x, y), size = cellRect)
 
-                // Highlight overlay
-                if (isHighlighted) {
+                // Incorrect color: faint tint over white
+                if (isIncorrect) {
+                    val rgb = puzzleState.palette[userColorIdx]
+                    drawRect(
+                        color = Color(AndroidColor.red(rgb), AndroidColor.green(rgb), AndroidColor.blue(rgb), 124),
+                        topLeft = Offset(x, y),
+                        size = cellRect
+                    )
+                }
+
+                // Highlight overlay (only when zoomed in enough to show numbers)
+                if (isHighlighted && showNumbers) {
                     drawRect(color = Color(0x40000000), topLeft = Offset(x, y), size = cellRect)
                 }
 
-                // Grid lines (only for uncolored cells)
-                if (userColorIdx == -1) {
+                // Grid lines (only for uncolored or incorrect cells)
+                if (!isCorrect) {
                     drawRect(
                         color = Color(0x30000000),
                         topLeft = Offset(x, y),
@@ -355,8 +368,8 @@ private fun PuzzleGrid(
                     )
                 }
 
-                // Draw number if zoomed in enough and cell is uncolored
-                if (showNumbers && userColorIdx == -1) {
+                // Draw number if zoomed in and cell is not correctly colored
+                if (showNumbers && !isCorrect) {
                     val number = (colorDisplayNumbers[targetColorIdx] ?: (targetColorIdx + 1)).toString()
                     val fontSize = (cellSize * 0.4f).coerceIn(4f, 24f)
                     val textStyle = TextStyle(

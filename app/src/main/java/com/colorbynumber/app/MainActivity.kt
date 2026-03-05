@@ -17,6 +17,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import com.colorbynumber.app.data.AppDatabase
+import com.colorbynumber.app.data.PlacementEventType
+import com.colorbynumber.app.data.PuzzleRepository
 import com.colorbynumber.app.engine.ColorQuantizer
 import com.colorbynumber.app.engine.Pixelator
 import com.colorbynumber.app.engine.PuzzleState
@@ -35,9 +41,14 @@ enum class Screen {
 
 class MainActivity : ComponentActivity() {
 
+    private lateinit var repository: PuzzleRepository
+
     @OptIn(ExperimentalPermissionsApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val db = AppDatabase.getInstance(this)
+        repository = PuzzleRepository(db.savedPuzzleDao(), db.placementEventDao())
 
         setContent {
             ColorByNumberTheme {
@@ -49,9 +60,35 @@ class MainActivity : ComponentActivity() {
                     var capturedBitmap by remember { mutableStateOf<Bitmap?>(null) }
                     var puzzleState by remember { mutableStateOf<PuzzleState?>(null) }
                     var isProcessing by remember { mutableStateOf(false) }
+                    var hasInProgressPuzzle by remember { mutableStateOf(false) }
 
                     val context = LocalContext.current
                     val coroutineScope = rememberCoroutineScope()
+                    val lifecycleOwner = LocalLifecycleOwner.current
+
+                    // Check for an existing in-progress puzzle on launch
+                    LaunchedEffect(Unit) {
+                        val id = withContext(Dispatchers.IO) {
+                            repository.getMostRecentInProgressId()
+                        }
+                        hasInProgressPuzzle = id != null
+                    }
+
+                    // Lifecycle observer: flush events + snapshot on pause/stop
+                    DisposableEffect(lifecycleOwner, puzzleState) {
+                        val observer = LifecycleEventObserver { _, event ->
+                            if (event == Lifecycle.Event.ON_PAUSE || event == Lifecycle.Event.ON_STOP) {
+                                puzzleState?.let { state ->
+                                    coroutineScope.launch(Dispatchers.IO) {
+                                        repository.flush()
+                                        repository.snapshotUserColors(state)
+                                    }
+                                }
+                            }
+                        }
+                        lifecycleOwner.lifecycle.addObserver(observer)
+                        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+                    }
 
                     // Camera permission
                     val cameraPermission = rememberPermissionState(
@@ -85,6 +122,22 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onPickGallery = {
                                     galleryLauncher.launch("image/*")
+                                },
+                                hasInProgressPuzzle = hasInProgressPuzzle,
+                                onContinuePuzzle = {
+                                    isProcessing = true
+                                    coroutineScope.launch {
+                                        val state = withContext(Dispatchers.IO) {
+                                            val id = repository.getMostRecentInProgressId()
+                                            id?.let { repository.loadPuzzle(it) }
+                                        }
+                                        if (state != null) {
+                                            attachEventRecording(state, coroutineScope)
+                                            puzzleState = state
+                                            currentScreen = Screen.PUZZLE
+                                        }
+                                        isProcessing = false
+                                    }
                                 }
                             )
                         }
@@ -109,7 +162,13 @@ class MainActivity : ComponentActivity() {
                                             val state = withContext(Dispatchers.Default) {
                                                 buildPuzzle(bmp, gridSize, detailLevel)
                                             }
+                                            // Persist the new puzzle
+                                            withContext(Dispatchers.IO) {
+                                                repository.createPuzzle(state)
+                                            }
+                                            attachEventRecording(state, coroutineScope)
                                             puzzleState = state
+                                            hasInProgressPuzzle = true
                                             isProcessing = false
                                             currentScreen = Screen.PUZZLE
                                         }
@@ -123,8 +182,21 @@ class MainActivity : ComponentActivity() {
                             puzzleState?.let { state ->
                                 PuzzleScreen(
                                     puzzleState = state,
-                                    onComplete = { currentScreen = Screen.COMPLETE },
-                                    onBack = { currentScreen = Screen.HOME }
+                                    onComplete = {
+                                        coroutineScope.launch(Dispatchers.IO) {
+                                            repository.markCompleted(state)
+                                        }
+                                        hasInProgressPuzzle = false
+                                        currentScreen = Screen.COMPLETE
+                                    },
+                                    onBack = {
+                                        // Snapshot progress before leaving
+                                        coroutineScope.launch(Dispatchers.IO) {
+                                            repository.flush()
+                                            repository.snapshotUserColors(state)
+                                        }
+                                        currentScreen = Screen.HOME
+                                    }
                                 )
                             }
                         }
@@ -153,6 +225,26 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    /**
+     * Attach the onCellChanged callback so every placement/erase is
+     * recorded via the repository's buffered event system.
+     */
+    private fun attachEventRecording(
+        state: PuzzleState,
+        scope: kotlinx.coroutines.CoroutineScope
+    ) {
+        state.onCellChanged = { row, col, colorIndex, isErase ->
+            scope.launch(Dispatchers.IO) {
+                repository.recordEvent(
+                    row = row,
+                    col = col,
+                    colorIndex = colorIndex,
+                    eventType = if (isErase) PlacementEventType.ERASE else PlacementEventType.PLACE
+                )
             }
         }
     }
