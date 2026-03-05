@@ -263,11 +263,12 @@ private fun PuzzleGrid(
                                         .fold(Offset.Zero) { acc, p -> acc + p } / pressed.size.toFloat()
                                     val newScale = (scale * zoomFactor).coerceIn(0.5f, 10f)
                                     val actualZoom = newScale / scale
-                                    offset = Offset(
+                                    val rawOffset = Offset(
                                         x = (1 - actualZoom) * (centroidPrev.x - size.width / 2f) + panDelta.x + actualZoom * offset.x,
                                         y = (1 - actualZoom) * (centroidPrev.y - size.height / 2f) + panDelta.y + actualZoom * offset.y
                                     )
                                     scale = newScale
+                                    offset = clampOffset(rawOffset, newScale, size.width.toFloat(), size.height.toFloat())
                                 }
                                 event.changes.forEach { it.consume() }
                             }
@@ -275,7 +276,7 @@ private fun PuzzleGrid(
                                 val change = event.changes.firstOrNull { it.id == down.id } ?: break
                                 if (!change.pressed) break
                                 val delta = change.position - change.previousPosition
-                                offset = Offset(offset.x + delta.x, offset.y + delta.y)
+                                offset = clampOffset(Offset(offset.x + delta.x, offset.y + delta.y), scale, size.width.toFloat(), size.height.toFloat())
                                 change.consume()
                             }
                             GestureMode.PAINTING -> {
@@ -499,6 +500,17 @@ private fun PaletteBar(
 }
 
 private enum class GestureMode { UNDECIDED, PANNING, PAINTING, ZOOMING }
+
+/**
+ * Clamps [offset] so that the screen center always lies inside the grid.
+ * Grid pixel size = min(canvasWidth, canvasHeight) * scale, centered by default.
+ * The constraint is offset ∈ [-gridPixelSize/2, gridPixelSize/2] on each axis.
+ */
+private fun clampOffset(offset: Offset, scale: Float, canvasWidth: Float, canvasHeight: Float): Offset {
+    val gridPixelSize = min(canvasWidth, canvasHeight) * scale
+    val max = gridPixelSize / 2f
+    return Offset(offset.x.coerceIn(-max, max), offset.y.coerceIn(-max, max))
+}
 
 private fun screenToCell(
     pos: Offset, canvasWidth: Float, canvasHeight: Float,
