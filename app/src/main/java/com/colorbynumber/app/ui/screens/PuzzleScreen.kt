@@ -191,6 +191,9 @@ private fun PuzzleGrid(
     var scale by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
 
+    // Paint mode indicator: screen position of the active touch, null when not painting
+    var paintIndicatorPos by remember { mutableStateOf<Offset?>(null) }
+
     // Always use the latest callback without restarting the gesture coroutine
     val currentOnCellTap by rememberUpdatedState(onCellTap)
 
@@ -235,6 +238,7 @@ private fun PuzzleGrid(
                     // null return = timeout = long press
                     if (earlyExit == null) {
                         mode = GestureMode.PAINTING
+                        paintIndicatorPos = lastKnownPos
                         val (row, col) = screenToCell(lastKnownPos, size.width.toFloat(), size.height.toFloat(), gridSize, scale, offset)
                         if (row in 0 until gridSize && col in 0 until gridSize) {
                             currentOnCellTap(row, col)
@@ -288,7 +292,11 @@ private fun PuzzleGrid(
                             }
                             GestureMode.PAINTING -> {
                                 val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                                if (!change.pressed) break
+                                if (!change.pressed) {
+                                    paintIndicatorPos = null
+                                    break
+                                }
+                                paintIndicatorPos = change.position
                                 val (row, col) = screenToCell(change.position, size.width.toFloat(), size.height.toFloat(), gridSize, scale, offset)
                                 val cell = row to col
                                 if (row in 0 until gridSize && col in 0 until gridSize && cell != lastCell) {
@@ -302,6 +310,7 @@ private fun PuzzleGrid(
 
                         if (!event.changes.any { it.pressed }) break
                     }
+                    paintIndicatorPos = null
                 }
             }
     ) {
@@ -406,6 +415,23 @@ private fun PuzzleGrid(
                     )
                 }
             }
+        }
+
+        // Paint mode touch indicator: concentric rings at the active touch position
+        paintIndicatorPos?.let { pos ->
+            val ringColor = if (selectedColorIndex != null && !isEraser) {
+                val rgb = puzzleState.palette[selectedColorIndex]
+                Color(AndroidColor.red(rgb), AndroidColor.green(rgb), AndroidColor.blue(rgb))
+            } else {
+                Color.LightGray
+            }
+            val radius = cellSize * 1.2f
+            drawCircle(color = Color.White, radius = radius + 4f, center = pos,
+                style = Stroke(width = 6f))
+            drawCircle(color = ringColor, radius = radius, center = pos,
+                style = Stroke(width = 4f))
+            drawCircle(color = Color(0x80000000), radius = radius - 4f, center = pos,
+                style = Stroke(width = 2f))
         }
     }
 }
