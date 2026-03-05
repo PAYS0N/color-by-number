@@ -47,6 +47,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        AppSettings.init(this)
+
         val db = AppDatabase.getInstance(this)
         repository = PuzzleRepository(db.savedPuzzleDao(), db.placementEventDao())
 

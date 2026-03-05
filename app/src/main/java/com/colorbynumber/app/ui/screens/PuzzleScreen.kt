@@ -24,6 +24,7 @@ import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.colorbynumber.app.AppSettings
 import com.colorbynumber.app.engine.PuzzleState
 import kotlin.math.abs
 import kotlin.math.max
@@ -41,19 +42,25 @@ fun PuzzleScreen(
     var selectedColorIndex by remember { mutableStateOf<Int?>(null) }
     var isEraser by remember { mutableStateOf(false) }
 
-    // Settings
+    // Settings (global — persisted across puzzles)
     var showSettings by remember { mutableStateOf(false) }
-    var preventErrors by remember { mutableStateOf(puzzleState.preventErrors) }
-    var preventOverwrite by remember { mutableStateOf(puzzleState.preventOverwrite) }
+    var preventErrors by remember { mutableStateOf(AppSettings.preventErrors) }
+    var preventOverwrite by remember { mutableStateOf(AppSettings.preventOverwrite) }
 
     // Track completed colors for palette visibility
     var completedColors by remember { mutableStateOf(puzzleState.completedColors()) }
     // Trigger recomposition
     var updateTrigger by remember { mutableIntStateOf(0) }
 
-    // Sync settings
-    LaunchedEffect(preventErrors) { puzzleState.preventErrors = preventErrors }
-    LaunchedEffect(preventOverwrite) { puzzleState.preventOverwrite = preventOverwrite }
+    // Sync settings to global store and active puzzle
+    LaunchedEffect(preventErrors) {
+        AppSettings.preventErrors = preventErrors
+        puzzleState.preventErrors = preventErrors
+    }
+    LaunchedEffect(preventOverwrite) {
+        AppSettings.preventOverwrite = preventOverwrite
+        puzzleState.preventOverwrite = preventOverwrite
+    }
 
     // Build visible palette (exclude completed colors)
     val visiblePalette = remember(completedColors, updateTrigger) {
