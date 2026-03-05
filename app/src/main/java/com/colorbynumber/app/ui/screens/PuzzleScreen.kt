@@ -399,13 +399,19 @@ private fun PuzzleGrid(
                 // Draw number if zoomed in and cell is not correctly colored
                 if (showNumbers && !isCorrect) {
                     val number = (colorDisplayNumbers[targetColorIdx] ?: (targetColorIdx + 1)).toString()
-                    val fontSize = (cellSize * 0.4f).coerceIn(4f, 24f)
-                    val textStyle = TextStyle(
+                    var fontSize = (cellSize * 0.4f).coerceIn(4f, 24f)
+                    var textStyle = TextStyle(
                         fontSize = fontSize.sp,
                         fontWeight = if (isHighlighted) FontWeight.Bold else FontWeight.Normal,
                         color = Color.Black
                     )
-                    val textLayout = textMeasurer.measure(number, textStyle)
+                    var textLayout = textMeasurer.measure(number, textStyle)
+                    // Scale down font if text is wider than ~85% of the cell
+                    if (textLayout.size.width > w * 0.85f) {
+                        fontSize = (fontSize * (w * 0.85f / textLayout.size.width)).coerceAtLeast(4f)
+                        textStyle = textStyle.copy(fontSize = fontSize.sp)
+                        textLayout = textMeasurer.measure(number, textStyle)
+                    }
                     drawText(
                         textLayoutResult = textLayout,
                         topLeft = Offset(
