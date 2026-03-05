@@ -254,10 +254,21 @@ private fun PuzzleGrid(
 
                         when (mode) {
                             GestureMode.ZOOMING -> {
-                                val zoomFactor = event.calculateZoom()
-                                val panDelta = event.calculatePan()
-                                scale = (scale * zoomFactor).coerceIn(0.5f, 10f)
-                                offset = Offset(offset.x + panDelta.x, offset.y + panDelta.y)
+                                val pressed = event.changes.filter { it.pressed }
+                                if (pressed.size >= 2) {
+                                    val zoomFactor = event.calculateZoom()
+                                    val panDelta = event.calculatePan()
+                                    val centroidPrev = pressed
+                                        .map { it.previousPosition }
+                                        .fold(Offset.Zero) { acc, p -> acc + p } / pressed.size.toFloat()
+                                    val newScale = (scale * zoomFactor).coerceIn(0.5f, 10f)
+                                    val actualZoom = newScale / scale
+                                    offset = Offset(
+                                        x = (1 - actualZoom) * (centroidPrev.x - size.width / 2f) + panDelta.x + actualZoom * offset.x,
+                                        y = (1 - actualZoom) * (centroidPrev.y - size.height / 2f) + panDelta.y + actualZoom * offset.y
+                                    )
+                                    scale = newScale
+                                }
                                 event.changes.forEach { it.consume() }
                             }
                             GestureMode.PANNING -> {
