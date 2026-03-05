@@ -1,6 +1,9 @@
 package com.colorbynumber.app.ui.screens
 
+import android.graphics.Bitmap as AndroidBitmap
+import android.graphics.Canvas as AndroidCanvas
 import android.graphics.Color as AndroidColor
+import android.graphics.Paint as AndroidPaint
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.*
 import androidx.compose.foundation.layout.*
@@ -185,7 +188,7 @@ private fun PuzzleGrid(
     onCellTap: (row: Int, col: Int) -> Unit
 ) {
     val gridSize = puzzleState.gridSize
-    val textMeasurer = rememberTextMeasurer()
+    val density = LocalDensity.current.density
 
     // Zoom and pan state
     var scale by remember { mutableFloatStateOf(1f) }
@@ -193,6 +196,25 @@ private fun PuzzleGrid(
 
     // Paint mode indicator: screen position of the active touch, null when not painting
     var paintIndicatorPos by remember { mutableStateOf<Offset?>(null) }
+
+    // Pre-computed Color objects to avoid per-frame allocation
+    val paletteColors = remember(puzzleState.palette) {
+        puzzleState.palette.map { rgb ->
+            Color(AndroidColor.red(rgb), AndroidColor.green(rgb), AndroidColor.blue(rgb))
+        }
+    }
+    val greyscaleColors = remember(puzzleState.palette) {
+        puzzleState.palette.map { rgb ->
+            val r = AndroidColor.red(rgb); val g = AndroidColor.green(rgb); val b = AndroidColor.blue(rgb)
+            val grey = (0.299 * r + 0.587 * g + 0.114 * b).toInt().coerceIn(0, 255)
+            Color(grey, grey, grey)
+        }
+    }
+    // Bitmap cache for zoomed-out rendering: (updateTrigger at render time) → ImageBitmap
+    val bitmapCache = remember { mutableStateOf<Pair<Int, ImageBitmap>?>(null) }
+    // Number sprite cache: rebuilt when cellSize changes significantly
+    val numberSpritesRef = remember { arrayOfNulls<Map<Int, ImageBitmap>>(1) }
+    val spriteCellSizeKey = remember { intArrayOf(-1) }
 
     // Always use the latest callback without restarting the gesture coroutine
     val currentOnCellTap by rememberUpdatedState(onCellTap)
@@ -321,104 +343,162 @@ private fun PuzzleGrid(
         val gridOriginX = (size.width - gridPixelSize) / 2f + offset.x
         val gridOriginY = (size.height - gridPixelSize) / 2f + offset.y
 
-        // Determine if we should show numbers (based on zoom level)
-        val showNumbers = scale > 1.5f
+        // Threshold scales linearly with grid size: 1.2 at 20×20, 2.5 at 100×100
+        val t = ((gridSize - 20f) / 80f).coerceIn(0f, 1f)
+        val showNumbersThreshold = 1.2f + t * 1.3f
+        val showNumbers = scale > showNumbersThreshold
 
-        for (row in 0 until gridSize) {
-            for (col in 0 until gridSize) {
-                val idx = row * gridSize + col
-                val targetColorIdx = puzzleState.targetColors[idx]
-                val userColorIdx = puzzleState.userColors[idx]
-                val targetRgb = puzzleState.palette[targetColorIdx]
-
-                // Snap to pixel boundaries to eliminate sub-pixel gaps between cells
-                val x = kotlin.math.floor(gridOriginX + col * cellSize)
-                val y = kotlin.math.floor(gridOriginY + row * cellSize)
-                val x2 = kotlin.math.floor(gridOriginX + (col + 1) * cellSize)
-                val y2 = kotlin.math.floor(gridOriginY + (row + 1) * cellSize)
-                val w = x2 - x
-                val h = y2 - y
-
-                // Skip cells completely outside the visible area
-                if (x2 < 0 || x > size.width || y2 < 0 || y > size.height) continue
-
-                val isCorrect = userColorIdx != -1 && userColorIdx == targetColorIdx
-                val isIncorrect = userColorIdx != -1 && userColorIdx != targetColorIdx
-
-                // Determine cell background color
-                val cellColor: Color = when {
-                    isCorrect -> {
-                        val rgb = puzzleState.palette[userColorIdx]
-                        Color(AndroidColor.red(rgb), AndroidColor.green(rgb), AndroidColor.blue(rgb))
-                    }
-                    showNumbers -> Color.White
-                    else -> {
-                        // Zoomed out: greyscale
-                        val r = AndroidColor.red(targetRgb)
-                        val g = AndroidColor.green(targetRgb)
-                        val b = AndroidColor.blue(targetRgb)
-                        val grey = (0.299 * r + 0.587 * g + 0.114 * b).toInt().coerceIn(0, 255)
-                        Color(grey, grey, grey)
-                    }
-                }
-
-                // Highlight cells matching selected color (uncolored or incorrectly colored)
-                val isHighlighted = selectedColorIndex != null &&
-                        targetColorIdx == selectedColorIndex && !isCorrect
-
-                val cellRect = androidx.compose.ui.geometry.Size(w, h)
-
-                // Draw cell background
-                drawRect(color = cellColor, topLeft = Offset(x, y), size = cellRect)
-
-                // Incorrect color: faint tint over white
-                if (isIncorrect) {
-                    val rgb = puzzleState.palette[userColorIdx]
-                    drawRect(
-                        color = Color(AndroidColor.red(rgb), AndroidColor.green(rgb), AndroidColor.blue(rgb), 124),
-                        topLeft = Offset(x, y),
-                        size = cellRect
-                    )
-                }
-
-                // Highlight overlay (only when zoomed in enough to show numbers)
-                if (isHighlighted && showNumbers) {
-                    drawRect(color = Color(0x40000000), topLeft = Offset(x, y), size = cellRect)
-                }
-
-                // Grid lines (only for uncolored or incorrect cells)
-                if (!isCorrect) {
-                    drawRect(
-                        color = Color(0x30000000),
-                        topLeft = Offset(x, y),
-                        size = cellRect,
-                        style = Stroke(width = 0.5f)
-                    )
-                }
-
-                // Draw number if zoomed in and cell is not correctly colored
-                if (showNumbers && !isCorrect) {
-                    val number = (colorDisplayNumbers[targetColorIdx] ?: (targetColorIdx + 1)).toString()
-                    var fontSize = (cellSize * 0.4f).coerceIn(4f, 24f)
-                    var textStyle = TextStyle(
-                        fontSize = fontSize.sp,
-                        fontWeight = if (isHighlighted) FontWeight.Bold else FontWeight.Normal,
-                        color = Color.Black
-                    )
-                    var textLayout = textMeasurer.measure(number, textStyle)
-                    // Scale down font if text is wider than ~85% of the cell
-                    if (textLayout.size.width > w * 0.85f) {
-                        fontSize = (fontSize * (w * 0.85f / textLayout.size.width)).coerceAtLeast(4f)
-                        textStyle = textStyle.copy(fontSize = fontSize.sp)
-                        textLayout = textMeasurer.measure(number, textStyle)
-                    }
-                    drawText(
-                        textLayoutResult = textLayout,
-                        topLeft = Offset(
-                            x + (w - textLayout.size.width) / 2f,
-                            y + (h - textLayout.size.height) / 2f
+        if (!showNumbers) {
+            // ── Zoomed-out fast path: single drawImage from cached bitmap ──────────
+            val cached = bitmapCache.value
+            val bmp: ImageBitmap = if (cached != null && cached.first == updateTrigger) {
+                cached.second
+            } else {
+                val newBmp = ImageBitmap(gridSize, gridSize)
+                val bmpCanvas = androidx.compose.ui.graphics.Canvas(newBmp)
+                val paint = androidx.compose.ui.graphics.Paint()
+                for (row in 0 until gridSize) {
+                    for (col in 0 until gridSize) {
+                        val idx = row * gridSize + col
+                        val targetColorIdx = puzzleState.targetColors[idx]
+                        val userColorIdx = puzzleState.userColors[idx]
+                        paint.color = if (userColorIdx != -1 && userColorIdx == targetColorIdx) {
+                            paletteColors[targetColorIdx]
+                        } else {
+                            greyscaleColors[targetColorIdx]
+                        }
+                        bmpCanvas.drawRect(
+                            androidx.compose.ui.geometry.Rect(col.toFloat(), row.toFloat(), col + 1f, row + 1f),
+                            paint
                         )
+                    }
+                }
+                bitmapCache.value = updateTrigger to newBmp
+                newBmp
+            }
+            drawImage(
+                image = bmp,
+                dstOffset = androidx.compose.ui.unit.IntOffset(gridOriginX.toInt(), gridOriginY.toInt()),
+                dstSize = androidx.compose.ui.unit.IntSize(gridPixelSize.toInt(), gridPixelSize.toInt()),
+                filterQuality = FilterQuality.None
+            )
+        } else {
+            // ── Zoomed-in path ────────────────────────────────────────────────────
+
+            // Rebuild number sprites when zoom changes significantly (quantized to 0.5px steps)
+            val sizeKey = (cellSize * 2f).toInt()
+            if (sizeKey != spriteCellSizeKey[0]) {
+                spriteCellSizeKey[0] = sizeKey
+                val spriteSize = cellSize.toInt().coerceAtLeast(4)
+                val baseFontSize = (cellSize * 0.4f).coerceIn(4f, 24f) * density
+                val maxW = spriteSize * 0.85f
+                val maxH = spriteSize * 0.80f
+                numberSpritesRef[0] = puzzleState.paletteOrder.withIndex().associate { (idx, colorIdx) ->
+                    val number = (idx + 1).toString()
+                    val bmp = AndroidBitmap.createBitmap(spriteSize, spriteSize, AndroidBitmap.Config.ARGB_8888)
+                    val cvs = AndroidCanvas(bmp)
+                    // Per-number paint so font size can be scaled down independently
+                    val paint = AndroidPaint().apply {
+                        textSize = baseFontSize
+                        color = AndroidColor.BLACK
+                        isAntiAlias = true
+                        textAlign = AndroidPaint.Align.CENTER
+                    }
+                    val textW = paint.measureText(number)
+                    val textH = paint.descent() - paint.ascent()
+                    val scale = minOf(
+                        if (textW > maxW) maxW / textW else 1f,
+                        if (textH > maxH) maxH / textH else 1f
                     )
+                    if (scale < 1f) paint.textSize = (baseFontSize * scale).coerceAtLeast(4f * density)
+                    val yPos = (spriteSize - paint.descent() - paint.ascent()) / 2f
+                    cvs.drawText(number, spriteSize / 2f, yPos, paint)
+                    colorIdx to bmp.asImageBitmap()
+                }
+            }
+            val numberSprites = numberSpritesRef[0] ?: emptyMap()
+
+            // Compute visible cell range — only iterate on-screen cells
+            val firstVisCol = max(0, ((-gridOriginX) / cellSize).toInt())
+            val lastVisCol  = min(gridSize - 1, ((size.width - gridOriginX) / cellSize).toInt() + 1)
+            val firstVisRow = max(0, ((-gridOriginY) / cellSize).toInt())
+            val lastVisRow  = min(gridSize - 1, ((size.height - gridOriginY) / cellSize).toInt() + 1)
+
+            // Pass A: backgrounds, tints, highlights, and number sprites
+            for (row in firstVisRow..lastVisRow) {
+                for (col in firstVisCol..lastVisCol) {
+                    val idx = row * gridSize + col
+                    val targetColorIdx = puzzleState.targetColors[idx]
+                    val userColorIdx = puzzleState.userColors[idx]
+
+                    val x = kotlin.math.floor(gridOriginX + col * cellSize)
+                    val y = kotlin.math.floor(gridOriginY + row * cellSize)
+                    val w = kotlin.math.floor(gridOriginX + (col + 1) * cellSize) - x
+                    val h = kotlin.math.floor(gridOriginY + (row + 1) * cellSize) - y
+
+                    val isCorrect = userColorIdx != -1 && userColorIdx == targetColorIdx
+                    val isIncorrect = userColorIdx != -1 && userColorIdx != targetColorIdx
+                    val isHighlighted = selectedColorIndex != null &&
+                            targetColorIdx == selectedColorIndex && !isCorrect
+
+                    val cellRect = androidx.compose.ui.geometry.Size(w, h)
+                    drawRect(
+                        color = if (isCorrect) paletteColors[userColorIdx] else Color.White,
+                        topLeft = Offset(x, y), size = cellRect
+                    )
+
+                    if (isIncorrect) {
+                        val rgb = puzzleState.palette[userColorIdx]
+                        drawRect(
+                            color = Color(AndroidColor.red(rgb), AndroidColor.green(rgb), AndroidColor.blue(rgb), 124),
+                            topLeft = Offset(x, y), size = cellRect
+                        )
+                    }
+                    if (isHighlighted) {
+                        drawRect(color = Color(0x40000000), topLeft = Offset(x, y), size = cellRect)
+                    }
+
+                    // Number sprite (replaces drawText — pixel blit only, no text layout per frame)
+                    if (!isCorrect) {
+                        numberSprites[targetColorIdx]?.let { sprite ->
+                            drawImage(
+                                image = sprite,
+                                dstOffset = androidx.compose.ui.unit.IntOffset(x.toInt(), y.toInt()),
+                                dstSize = androidx.compose.ui.unit.IntSize(w.toInt(), h.toInt()),
+                                filterQuality = FilterQuality.Low
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Pass B: grid lines as a single Path (replaces per-cell drawRect Stroke)
+            val gridPath = Path()
+            for (row in firstVisRow..lastVisRow + 1) {
+                val ly = kotlin.math.floor(gridOriginY + row * cellSize)
+                gridPath.moveTo(kotlin.math.floor(gridOriginX + firstVisCol * cellSize), ly)
+                gridPath.lineTo(kotlin.math.floor(gridOriginX + (lastVisCol + 1) * cellSize), ly)
+            }
+            for (col in firstVisCol..lastVisCol + 1) {
+                val lx = kotlin.math.floor(gridOriginX + col * cellSize)
+                gridPath.moveTo(lx, kotlin.math.floor(gridOriginY + firstVisRow * cellSize))
+                gridPath.lineTo(lx, kotlin.math.floor(gridOriginY + (lastVisRow + 1) * cellSize))
+            }
+            drawPath(gridPath, color = Color(0x30000000), style = Stroke(width = 0.5f))
+
+            // Pass C: re-draw correct cells to cover their grid lines
+            for (row in firstVisRow..lastVisRow) {
+                for (col in firstVisCol..lastVisCol) {
+                    val idx = row * gridSize + col
+                    val userColorIdx = puzzleState.userColors[idx]
+                    val targetColorIdx = puzzleState.targetColors[idx]
+                    if (userColorIdx != -1 && userColorIdx == targetColorIdx) {
+                        val x = kotlin.math.floor(gridOriginX + col * cellSize)
+                        val y = kotlin.math.floor(gridOriginY + row * cellSize)
+                        val w = kotlin.math.floor(gridOriginX + (col + 1) * cellSize) - x
+                        val h = kotlin.math.floor(gridOriginY + (row + 1) * cellSize) - y
+                        drawRect(paletteColors[userColorIdx], topLeft = Offset(x, y), size = androidx.compose.ui.geometry.Size(w, h))
+                    }
                 }
             }
         }
