@@ -187,6 +187,11 @@ private fun PuzzleGrid(
     // Always use the latest callback without restarting the gesture coroutine
     val currentOnCellTap by rememberUpdatedState(onCellTap)
 
+    // Painting continuity: if the gesture was interrupted (e.g. system edge gesture cancelled it),
+    // re-entering from the same area resumes painting without requiring a new long-press.
+    var continuePainting by remember { mutableStateOf(false) }
+    var lastPaintScreenPos by remember { mutableStateOf(Offset.Zero) }
+
     Canvas(
         modifier = Modifier
             .fillMaxSize()
@@ -197,51 +202,67 @@ private fun PuzzleGrid(
                     var mode = GestureMode.UNDECIDED
                     var lastCell: Pair<Int, Int>? = null
 
-                    // Phase 1: determine gesture type within 500ms
-                    // withTimeoutOrNull returns null on timeout (= long press), Unit on early exit
-                    val earlyExit = withTimeoutOrNull(500L) {
-                        while (true) {
-                            val event = awaitPointerEvent()
-
-                            if (event.changes.count { it.pressed } >= 2) {
-                                mode = GestureMode.ZOOMING
-                                break
-                            }
-
-                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                            lastKnownPos = change.position
-
-                            if (!change.pressed) {
-                                // Finger lifted before timeout = tap
-                                break
-                            }
-
-                            val dist = (change.position - down.position).getDistance()
-                            if (dist > viewConfiguration.touchSlop) {
-                                mode = GestureMode.PANNING
-                                break
-                            }
-                        }
-                        Unit
-                    }
-
-                    // null return = timeout = long press
-                    if (earlyExit == null) {
+                    // If the previous painting gesture was interrupted (not explicitly lifted),
+                    // and the new touch starts near the same screen position, resume immediately.
+                    if (continuePainting &&
+                        (down.position - lastPaintScreenPos).getDistance() < size.width * 0.25f) {
                         mode = GestureMode.PAINTING
-                        val (row, col) = screenToCell(lastKnownPos, size.width.toFloat(), size.height.toFloat(), gridSize, scale, offset)
+                        val (row, col) = screenToCell(down.position, size.width.toFloat(), size.height.toFloat(), gridSize, scale, offset)
                         if (row in 0 until gridSize && col in 0 until gridSize) {
                             currentOnCellTap(row, col)
                             lastCell = row to col
                         }
-                    }
+                    } else {
+                        continuePainting = false
 
-                    // Quick tap: finger lifted during phase 1
-                    if (mode == GestureMode.UNDECIDED) {
-                        val (row, col) = screenToCell(down.position, size.width.toFloat(), size.height.toFloat(), gridSize, scale, offset)
-                        if (row in 0 until gridSize && col in 0 until gridSize) {
-                            currentOnCellTap(row, col)
+                        // Phase 1: determine gesture type within 500ms
+                        // withTimeoutOrNull returns null on timeout (= long press), Unit on early exit
+                        val earlyExit = withTimeoutOrNull(500L) {
+                            while (true) {
+                                val event = awaitPointerEvent()
+
+                                if (event.changes.count { it.pressed } >= 2) {
+                                    mode = GestureMode.ZOOMING
+                                    break
+                                }
+
+                                val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                                lastKnownPos = change.position
+
+                                if (!change.pressed) {
+                                    // Finger lifted before timeout = tap
+                                    break
+                                }
+
+                                val dist = (change.position - down.position).getDistance()
+                                if (dist > viewConfiguration.touchSlop) {
+                                    mode = GestureMode.PANNING
+                                    break
+                                }
+                            }
+                            Unit
                         }
-                        return@awaitEachGesture
+
+                        // null return = timeout = long press → enter painting mode
+                        if (earlyExit == null) {
+                            mode = GestureMode.PAINTING
+                            continuePainting = true
+                            lastPaintScreenPos = lastKnownPos
+                            val (row, col) = screenToCell(lastKnownPos, size.width.toFloat(), size.height.toFloat(), gridSize, scale, offset)
+                            if (row in 0 until gridSize && col in 0 until gridSize) {
+                                currentOnCellTap(row, col)
+                                lastCell = row to col
+                            }
+                        }
+
+                        // Quick tap: finger lifted during phase 1
+                        if (mode == GestureMode.UNDECIDED) {
+                            val (row, col) = screenToCell(down.position, size.width.toFloat(), size.height.toFloat(), gridSize, scale, offset)
+                            if (row in 0 until gridSize && col in 0 until gridSize) {
+                                currentOnCellTap(row, col)
+                            }
+                            return@awaitEachGesture
+                        }
                     }
 
                     // Phase 2: handle active mode until all fingers lift
@@ -280,7 +301,12 @@ private fun PuzzleGrid(
                             }
                             GestureMode.PAINTING -> {
                                 val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                                if (!change.pressed) break
+                                if (!change.pressed) {
+                                    // Explicit lift: clear painting continuity
+                                    continuePainting = false
+                                    break
+                                }
+                                lastPaintScreenPos = change.position
                                 val (row, col) = screenToCell(change.position, size.width.toFloat(), size.height.toFloat(), gridSize, scale, offset)
                                 val cell = row to col
                                 if (row in 0 until gridSize && col in 0 until gridSize && cell != lastCell) {
