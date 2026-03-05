@@ -23,6 +23,7 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import com.colorbynumber.app.data.AppDatabase
 import com.colorbynumber.app.data.PlacementEventType
 import com.colorbynumber.app.data.PuzzleRepository
+import com.colorbynumber.app.data.SavedPuzzle
 import com.colorbynumber.app.engine.ColorQuantizer
 import com.colorbynumber.app.engine.Pixelator
 import com.colorbynumber.app.engine.PuzzleState
@@ -36,7 +37,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 enum class Screen {
-    HOME, CAMERA, CONFIG, PUZZLE, COMPLETE
+    HOME, CAMERA, CONFIG, PUZZLE, COMPLETE, HISTORY
 }
 
 class MainActivity : ComponentActivity() {
@@ -62,19 +63,13 @@ class MainActivity : ComponentActivity() {
                     var capturedBitmap by remember { mutableStateOf<Bitmap?>(null) }
                     var puzzleState by remember { mutableStateOf<PuzzleState?>(null) }
                     var isProcessing by remember { mutableStateOf(false) }
-                    var hasInProgressPuzzle by remember { mutableStateOf(false) }
+
+                    // History list, loaded when navigating to HISTORY screen
+                    var savedPuzzles by remember { mutableStateOf<List<SavedPuzzle>>(emptyList()) }
 
                     val context = LocalContext.current
                     val coroutineScope = rememberCoroutineScope()
                     val lifecycleOwner = LocalLifecycleOwner.current
-
-                    // Check for an existing in-progress puzzle on launch
-                    LaunchedEffect(Unit) {
-                        val id = withContext(Dispatchers.IO) {
-                            repository.getMostRecentInProgressId()
-                        }
-                        hasInProgressPuzzle = id != null
-                    }
 
                     // Lifecycle observer: flush events + snapshot on pause/stop
                     DisposableEffect(lifecycleOwner, puzzleState) {
@@ -125,13 +120,26 @@ class MainActivity : ComponentActivity() {
                                 onPickGallery = {
                                     galleryLauncher.launch("image/*")
                                 },
-                                hasInProgressPuzzle = hasInProgressPuzzle,
-                                onContinuePuzzle = {
+                                onMyPuzzles = {
+                                    coroutineScope.launch {
+                                        val puzzles = withContext(Dispatchers.IO) {
+                                            repository.getAll()
+                                        }
+                                        savedPuzzles = puzzles
+                                        currentScreen = Screen.HISTORY
+                                    }
+                                }
+                            )
+                        }
+
+                        Screen.HISTORY -> {
+                            HistoryScreen(
+                                puzzles = savedPuzzles,
+                                onResumePuzzle = { id ->
                                     isProcessing = true
                                     coroutineScope.launch {
                                         val state = withContext(Dispatchers.IO) {
-                                            val id = repository.getMostRecentInProgressId()
-                                            id?.let { repository.loadPuzzle(it) }
+                                            repository.loadPuzzle(id)
                                         }
                                         if (state != null) {
                                             attachEventRecording(state, coroutineScope)
@@ -140,7 +148,20 @@ class MainActivity : ComponentActivity() {
                                         }
                                         isProcessing = false
                                     }
-                                }
+                                },
+                                onDeletePuzzle = { id ->
+                                    coroutineScope.launch {
+                                        withContext(Dispatchers.IO) {
+                                            repository.deletePuzzle(id)
+                                        }
+                                        // Refresh the list
+                                        val puzzles = withContext(Dispatchers.IO) {
+                                            repository.getAll()
+                                        }
+                                        savedPuzzles = puzzles
+                                    }
+                                },
+                                onBack = { currentScreen = Screen.HOME }
                             )
                         }
 
@@ -170,7 +191,6 @@ class MainActivity : ComponentActivity() {
                                             }
                                             attachEventRecording(state, coroutineScope)
                                             puzzleState = state
-                                            hasInProgressPuzzle = true
                                             isProcessing = false
                                             currentScreen = Screen.PUZZLE
                                         }
@@ -188,7 +208,6 @@ class MainActivity : ComponentActivity() {
                                         coroutineScope.launch(Dispatchers.IO) {
                                             repository.markCompleted(state)
                                         }
-                                        hasInProgressPuzzle = false
                                         currentScreen = Screen.COMPLETE
                                     },
                                     onBack = {

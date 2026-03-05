@@ -1,0 +1,435 @@
+package com.colorbynumber.app.ui.screens
+
+import android.graphics.Bitmap
+import android.graphics.Color as AndroidColor
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.colorbynumber.app.data.PuzzleStatus
+import com.colorbynumber.app.data.SavedPuzzle
+import java.text.SimpleDateFormat
+import java.util.*
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HistoryScreen(
+    puzzles: List<SavedPuzzle>,
+    onResumePuzzle: (Long) -> Unit,
+    onDeletePuzzle: (Long) -> Unit,
+    onBack: () -> Unit
+) {
+    // Dialog state
+    var showCompletedDialog by remember { mutableStateOf<SavedPuzzle?>(null) }
+    var showInProgressDialog by remember { mutableStateOf<SavedPuzzle?>(null) }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("My Puzzles") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        if (puzzles.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "No puzzles yet.\nTake a photo or pick from your gallery to get started!",
+                    textAlign = TextAlign.Center,
+                    fontSize = 16.sp,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                    modifier = Modifier.padding(32.dp)
+                )
+            }
+        } else {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(puzzles, key = { it.id }) { puzzle ->
+                    PuzzleCard(
+                        puzzle = puzzle,
+                        onClick = {
+                            if (puzzle.status == PuzzleStatus.COMPLETED) {
+                                showCompletedDialog = puzzle
+                            } else {
+                                showInProgressDialog = puzzle
+                            }
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    // Completed puzzle dialog — enlarged image
+    showCompletedDialog?.let { puzzle ->
+        CompletedPuzzleDialog(
+            puzzle = puzzle,
+            onDismiss = { showCompletedDialog = null }
+        )
+    }
+
+    // In-progress puzzle dialog — resume or delete
+    showInProgressDialog?.let { puzzle ->
+        InProgressPuzzleDialog(
+            puzzle = puzzle,
+            onResume = {
+                showInProgressDialog = null
+                onResumePuzzle(puzzle.id)
+            },
+            onDelete = {
+                showInProgressDialog = null
+                onDeletePuzzle(puzzle.id)
+            },
+            onDismiss = { showInProgressDialog = null }
+        )
+    }
+}
+
+@Composable
+private fun PuzzleCard(
+    puzzle: SavedPuzzle,
+    onClick: () -> Unit
+) {
+    val thumbnail = remember(puzzle.id, puzzle.updatedAt) {
+        buildThumbnail(puzzle)
+    }
+
+    val progress = remember(puzzle.id, puzzle.updatedAt) {
+        computeProgress(puzzle)
+    }
+
+    val dateStr = remember(puzzle.updatedAt) {
+        val sdf = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
+        sdf.format(Date(puzzle.updatedAt))
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(0.85f)
+            .clickable { onClick() },
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Thumbnail image
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                ) {
+                    thumbnail?.let { bmp ->
+                        Image(
+                            bitmap = bmp.asImageBitmap(),
+                            contentDescription = "Puzzle thumbnail",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+
+                    // Status badge
+                    val isCompleted = puzzle.status == PuzzleStatus.COMPLETED
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(6.dp)
+                            .background(
+                                color = if (isCompleted) Color(0xFF4CAF50) else Color(0xFFFFA726),
+                                shape = RoundedCornerShape(6.dp)
+                            )
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        if (isCompleted) {
+                            Icon(
+                                Icons.Default.CheckCircle,
+                                contentDescription = "Completed",
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        } else {
+                            Text(
+                                text = "${(progress * 100).toInt()}%",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
+
+                // Info row
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = "${puzzle.gridSize}×${puzzle.gridSize}",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = dateStr,
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompletedPuzzleDialog(
+    puzzle: SavedPuzzle,
+    onDismiss: () -> Unit
+) {
+    val fullBitmap = remember(puzzle.id) {
+        buildFullColorBitmap(puzzle)
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.85f))
+                .clickable { onDismiss() },
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(24.dp)
+            ) {
+                // Close button
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = Color.White
+                    )
+                }
+
+                fullBitmap?.let { bmp ->
+                    Image(
+                        bitmap = bmp.asImageBitmap(),
+                        contentDescription = "Completed puzzle",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(1f)
+                            .clip(RoundedCornerShape(8.dp)),
+                        contentScale = ContentScale.Fit
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Placeholder for future video playback
+                Text(
+                    text = "Tap anywhere to close",
+                    fontSize = 14.sp,
+                    color = Color.White.copy(alpha = 0.6f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun InProgressPuzzleDialog(
+    puzzle: SavedPuzzle,
+    onResume: () -> Unit,
+    onDelete: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val thumbnail = remember(puzzle.id) {
+        buildThumbnail(puzzle)
+    }
+
+    val progress = remember(puzzle.id) {
+        computeProgress(puzzle)
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text("${puzzle.gridSize}×${puzzle.gridSize} Puzzle")
+        },
+        text = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                thumbnail?.let { bmp ->
+                    Image(
+                        bitmap = bmp.asImageBitmap(),
+                        contentDescription = "Puzzle preview",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(1f)
+                            .clip(RoundedCornerShape(8.dp)),
+                        contentScale = ContentScale.Fit
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "${(progress * 100).toInt()}% complete",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = onResume) {
+                Text("Resume")
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDelete,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Text("Delete")
+            }
+        }
+    )
+}
+
+// ---------------------------------------------------------------------------
+// Helper functions
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a small thumbnail bitmap from the saved puzzle data.
+ * For completed puzzles: shows the full-color image.
+ * For in-progress: shows colored cells on a grey background.
+ */
+private fun buildThumbnail(puzzle: SavedPuzzle): Bitmap? {
+    return try {
+        val size = puzzle.gridSize
+        val palette = puzzle.paletteJson.split(",").map { it.trim().toInt() }
+        val targetColors = bytesToIntArray(puzzle.targetColors)
+        val userColors = bytesToIntArray(puzzle.userColors)
+
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        for (row in 0 until size) {
+            for (col in 0 until size) {
+                val idx = row * size + col
+                val targetIdx = targetColors[idx]
+                val userIdx = userColors[idx]
+                val targetRgb = palette[targetIdx]
+
+                val pixel = if (puzzle.status == PuzzleStatus.COMPLETED) {
+                    // Show full color
+                    targetRgb or (0xFF shl 24)
+                } else if (userIdx != -1 && userIdx == targetIdx) {
+                    // Correctly colored cell
+                    palette[userIdx] or (0xFF shl 24)
+                } else {
+                    // Greyscale for unfinished cells
+                    val r = AndroidColor.red(targetRgb)
+                    val g = AndroidColor.green(targetRgb)
+                    val b = AndroidColor.blue(targetRgb)
+                    val grey = (0.299 * r + 0.587 * g + 0.114 * b).toInt().coerceIn(0, 255)
+                    AndroidColor.rgb(grey, grey, grey)
+                }
+                bitmap.setPixel(col, row, pixel)
+            }
+        }
+        // Scale up for display
+        Bitmap.createScaledBitmap(bitmap, 400, 400, false)
+    } catch (e: Exception) {
+        null
+    }
+}
+
+/**
+ * Build a full-resolution color bitmap for the completed dialog.
+ */
+private fun buildFullColorBitmap(puzzle: SavedPuzzle): Bitmap? {
+    return try {
+        val size = puzzle.gridSize
+        val palette = puzzle.paletteJson.split(",").map { it.trim().toInt() }
+        val targetColors = bytesToIntArray(puzzle.targetColors)
+
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        for (row in 0 until size) {
+            for (col in 0 until size) {
+                val idx = row * size + col
+                val colorIdx = targetColors[idx]
+                bitmap.setPixel(col, row, palette[colorIdx] or (0xFF shl 24))
+            }
+        }
+        Bitmap.createScaledBitmap(bitmap, 800, 800, false)
+    } catch (e: Exception) {
+        null
+    }
+}
+
+/**
+ * Compute progress as a fraction (0.0 to 1.0).
+ */
+private fun computeProgress(puzzle: SavedPuzzle): Float {
+    return try {
+        val targetColors = bytesToIntArray(puzzle.targetColors)
+        val userColors = bytesToIntArray(puzzle.userColors)
+        val total = targetColors.size
+        if (total == 0) return 0f
+        val correct = targetColors.indices.count { userColors[it] == targetColors[it] }
+        correct.toFloat() / total
+    } catch (e: Exception) {
+        0f
+    }
+}
+
+private fun bytesToIntArray(bytes: ByteArray): IntArray {
+    val intBuf = java.nio.ByteBuffer.wrap(bytes).asIntBuffer()
+    val result = IntArray(intBuf.remaining())
+    intBuf.get(result)
+    return result
+}

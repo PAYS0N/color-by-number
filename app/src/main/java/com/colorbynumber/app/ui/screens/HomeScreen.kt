@@ -3,8 +3,8 @@ package com.colorbynumber.app.ui.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.PhotoLibrary
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -17,8 +17,7 @@ import androidx.compose.ui.unit.sp
 fun HomeScreen(
     onTakePhoto: () -> Unit,
     onPickGallery: () -> Unit,
-    hasInProgressPuzzle: Boolean = false,
-    onContinuePuzzle: () -> Unit = {}
+    onMyPuzzles: () -> Unit
 ) {
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -48,28 +47,26 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(64.dp))
 
-            // Continue button — only shown when there's an in-progress puzzle
-            if (hasInProgressPuzzle) {
-                Button(
-                    onClick = onContinuePuzzle,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.secondary
-                    )
-                ) {
-                    Icon(
-                        Icons.Default.PlayArrow,
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text("Continue Puzzle", fontSize = 18.sp)
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
+            // My Puzzles button
+            Button(
+                onClick = onMyPuzzles,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.secondary
+                )
+            ) {
+                Icon(
+                    Icons.Default.History,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text("My Puzzles", fontSize = 18.sp)
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             Button(
                 onClick = onTakePhoto,
