@@ -206,7 +206,7 @@ private fun PuzzleGrid(
 
                     // Phase 1: determine gesture type within 500ms
                     // withTimeoutOrNull returns null on timeout (= long press), Unit on early exit
-                    val earlyExit = withTimeoutOrNull(500L) {
+                    val earlyExit = withTimeoutOrNull(200L) {
                         while (true) {
                             val event = awaitPointerEvent()
 
