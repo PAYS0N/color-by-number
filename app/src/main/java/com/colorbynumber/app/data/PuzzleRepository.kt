@@ -1,5 +1,6 @@
 package com.colorbynumber.app.data
 
+import com.colorbynumber.app.engine.PuzzleReplayState
 import com.colorbynumber.app.engine.PuzzleState
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -178,6 +179,39 @@ class PuzzleRepository(
      */
     suspend fun getEventsForPuzzle(puzzleId: Long): List<PlacementEvent> {
         return eventDao.getAllForPuzzle(puzzleId)
+    }
+
+    // ---------------------------------------------------------------
+    // Replay support
+    // ---------------------------------------------------------------
+
+    /**
+     * Load a [PuzzleReplayState] for the given completed puzzle.
+     *
+     * Fetches all events from the database, filters to only correct
+     * placements using [PuzzleReplayState.filterCorrectEvents], and
+     * builds the replay state object.
+     *
+     * Returns null if the puzzle doesn't exist.
+     */
+    suspend fun loadReplayState(puzzleId: Long): PuzzleReplayState? {
+        val entity = puzzleDao.getById(puzzleId) ?: return null
+        val palette = entity.paletteJson.split(",").map { it.trim().toInt() }
+        val targetColors = bytesToIntArray(entity.targetColors)
+        val allEvents = eventDao.getAllForPuzzle(puzzleId)
+
+        val correctEvents = PuzzleReplayState.filterCorrectEvents(
+            events = allEvents,
+            targetColors = targetColors,
+            gridSize = entity.gridSize
+        )
+
+        return PuzzleReplayState(
+            gridSize = entity.gridSize,
+            palette = palette,
+            targetColors = targetColors,
+            correctEvents = correctEvents
+        )
     }
 
     /**

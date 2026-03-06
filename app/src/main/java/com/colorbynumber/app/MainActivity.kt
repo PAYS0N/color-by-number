@@ -147,6 +147,7 @@ class MainActivity : ComponentActivity() {
                             BackHandler { currentScreen = Screen.HOME }
                             HistoryScreen(
                                 puzzles = savedPuzzles,
+                                repository = repository,
                                 onResumePuzzle = { id ->
                                     isProcessing = true
                                     coroutineScope.launch {

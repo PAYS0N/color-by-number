@@ -28,8 +28,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.colorbynumber.app.data.PuzzleRepository
 import com.colorbynumber.app.data.PuzzleStatus
 import com.colorbynumber.app.data.SavedPuzzle
+import com.colorbynumber.app.engine.PuzzleReplayState
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -37,6 +41,7 @@ import java.util.*
 @Composable
 fun HistoryScreen(
     puzzles: List<SavedPuzzle>,
+    repository: PuzzleRepository,
     onResumePuzzle: (Long) -> Unit,
     onDeletePuzzle: (Long) -> Unit,
     onBack: () -> Unit
@@ -98,10 +103,11 @@ fun HistoryScreen(
         }
     }
 
-    // Completed puzzle dialog — enlarged image
+    // Completed puzzle dialog — replay video
     showCompletedDialog?.let { puzzle ->
         CompletedPuzzleDialog(
             puzzle = puzzle,
+            repository = repository,
             onDismiss = { showCompletedDialog = null }
         )
     }
@@ -223,10 +229,23 @@ private fun PuzzleCard(
 @Composable
 private fun CompletedPuzzleDialog(
     puzzle: SavedPuzzle,
+    repository: PuzzleRepository,
     onDismiss: () -> Unit
 ) {
-    val fullBitmap = remember(puzzle.id) {
-        buildFullColorBitmap(puzzle)
+    // Load replay state asynchronously
+    var replayState by remember { mutableStateOf<PuzzleReplayState?>(null) }
+    var loadError by remember { mutableStateOf(false) }
+
+    LaunchedEffect(puzzle.id) {
+        val state = withContext(Dispatchers.IO) {
+            repository.loadReplayState(puzzle.id)
+        }
+        if (state != null) {
+            state.fillComplete()
+            replayState = state
+        } else {
+            loadError = true
+        }
     }
 
     Dialog(
@@ -256,23 +275,37 @@ private fun CompletedPuzzleDialog(
                     )
                 }
 
-                fullBitmap?.let { bmp ->
-                    Image(
-                        bitmap = bmp.asImageBitmap(),
-                        contentDescription = "Completed puzzle",
+                val state = replayState
+                if (state != null) {
+                    // Replay player replaces the old static image
+                    // clickable(false) wrapper prevents the outer Box's
+                    // clickable from dismissing when interacting with controls
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .aspectRatio(1f)
-                            .clip(RoundedCornerShape(8.dp)),
-                        contentScale = ContentScale.Fit
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable(enabled = false, onClick = {})
+                    ) {
+                        PuzzleReplayPlayer(
+                            replayState = state,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                } else if (loadError) {
+                    Text(
+                        text = "Could not load replay data.",
+                        color = Color.White,
+                        fontSize = 14.sp
                     )
+                } else {
+                    // Loading
+                    CircularProgressIndicator(color = Color.White)
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Placeholder for future video playback
                 Text(
-                    text = "Tap anywhere to close",
+                    text = "Tap outside to close",
                     fontSize = 14.sp,
                     color = Color.White.copy(alpha = 0.6f)
                 )
