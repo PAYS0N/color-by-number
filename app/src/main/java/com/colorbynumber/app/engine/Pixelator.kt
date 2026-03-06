@@ -18,7 +18,9 @@ object Pixelator {
         // Scale down to grid size using nearest-neighbor-like behavior
         // We use FILTER=false for a blocky pixel look
         return Bitmap.createScaledBitmap(cropped, gridSize, gridSize, false).also {
-            if (it !== cropped) cropped.recycle()
+            // Only recycle the crop if it is a distinct intermediate (not the original source,
+            // which createBitmap can return as-is for already-square images on some API levels)
+            if (it !== cropped && cropped !== source) cropped.recycle()
         }
     }
 
