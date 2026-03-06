@@ -149,6 +149,14 @@ fun HistoryScreen(
         CompletedPuzzleDialog(
             puzzle = puzzle,
             repository = repository,
+            onDelete = {
+                showCompletedDialog = null
+                val id = puzzle.id
+                coroutineScope.launch {
+                    withContext(Dispatchers.IO) { repository.deletePuzzle(id) }
+                    reloadTrigger++
+                }
+            },
             onDismiss = { showCompletedDialog = null }
         )
     }
@@ -275,11 +283,13 @@ private fun PuzzleCard(
 private fun CompletedPuzzleDialog(
     puzzle: SavedPuzzle,
     repository: PuzzleRepository,
+    onDelete: () -> Unit,
     onDismiss: () -> Unit
 ) {
     // Load replay state asynchronously
     var replayState by remember { mutableStateOf<PuzzleReplayState?>(null) }
     var loadError by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
 
     LaunchedEffect(puzzle.id) {
         val state = withContext(Dispatchers.IO) {
@@ -293,64 +303,97 @@ private fun CompletedPuzzleDialog(
         }
     }
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.85f))
-                .clickable { onDismiss() },
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(24.dp)
-            ) {
-                // Close button
-                IconButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.align(Alignment.End)
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Delete puzzle?") },
+            text = { Text("This will permanently delete the puzzle and replay data. This cannot be undone.") },
+            confirmButton = {
+                Button(
+                    onClick = onDelete,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
                 ) {
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = "Close",
-                        tint = Color.White
-                    )
+                    Text("Delete")
                 }
-
-                val state = replayState
-                if (state != null) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable(enabled = false, onClick = {})
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    } else {
+        Dialog(
+            onDismissRequest = onDismiss,
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.85f))
+                    .clickable { onDismiss() },
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(24.dp)
+                ) {
+                    // Top row: delete + close
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        PuzzleReplayPlayer(
-                            replayState = state,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                        TextButton(
+                            onClick = { showDeleteConfirm = true },
+                            colors = ButtonDefaults.textButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error
+                            )
+                        ) {
+                            Text("Delete")
+                        }
+                        IconButton(onClick = onDismiss) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = Color.White
+                            )
+                        }
                     }
-                } else if (loadError) {
+
+                    val state = replayState
+                    if (state != null) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable(enabled = false, onClick = {})
+                        ) {
+                            PuzzleReplayPlayer(
+                                replayState = state,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    } else if (loadError) {
+                        Text(
+                            text = "Could not load replay data.",
+                            color = Color.White,
+                            fontSize = 14.sp
+                        )
+                    } else {
+                        // Loading
+                        CircularProgressIndicator(color = Color.White)
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
                     Text(
-                        text = "Could not load replay data.",
-                        color = Color.White,
-                        fontSize = 14.sp
+                        text = "Tap outside to close",
+                        fontSize = 14.sp,
+                        color = Color.White.copy(alpha = 0.6f)
                     )
-                } else {
-                    // Loading
-                    CircularProgressIndicator(color = Color.White)
                 }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = "Tap outside to close",
-                    fontSize = 14.sp,
-                    color = Color.White.copy(alpha = 0.6f)
-                )
             }
         }
     }
