@@ -325,10 +325,42 @@ private fun PuzzleGrid(
                     if (earlyExit == null) {
                         mode = GestureMode.PAINTING
                         paintIndicatorPos = lastKnownPos
-                        val (row, col) = screenToCell(lastKnownPos, size.width.toFloat(), size.height.toFloat(), gridSize, scale, offset)
-                        if (row in 0 until gridSize && col in 0 until gridSize) {
-                            currentOnCellTap(row, col)
-                            lastCell = row to col
+                        val initialCell = screenToCell(lastKnownPos, size.width.toFloat(), size.height.toFloat(), gridSize, scale, offset)
+
+                        // Settle window: paint immediately if finger moves cells, otherwise wait 50ms then paint held cell
+                        var movedDuringSettle = false
+                        var liftedDuringSettle = false
+                        withTimeoutOrNull(50L) {
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                                if (!change.pressed) {
+                                    paintIndicatorPos = null
+                                    liftedDuringSettle = true
+                                    break
+                                }
+                                paintIndicatorPos = change.position
+                                lastKnownPos = change.position
+                                val (r, c) = screenToCell(change.position, size.width.toFloat(), size.height.toFloat(), gridSize, scale, offset)
+                                if ((r to c) != initialCell) {
+                                    movedDuringSettle = true
+                                    if (r in 0 until gridSize && c in 0 until gridSize) {
+                                        currentOnCellTap(r, c)
+                                        lastCell = r to c
+                                    }
+                                    break
+                                }
+                            }
+                        }
+                        if (liftedDuringSettle) return@awaitEachGesture
+
+                        // 50ms elapsed without moving — paint the initial held cell
+                        if (!movedDuringSettle) {
+                            val (r, c) = initialCell
+                            if (r in 0 until gridSize && c in 0 until gridSize) {
+                                currentOnCellTap(r, c)
+                                lastCell = initialCell
+                            }
                         }
                     }
 
