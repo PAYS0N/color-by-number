@@ -25,7 +25,6 @@ import com.colorbynumber.app.data.AppDatabase
 import com.colorbynumber.app.data.GalleryRepository
 import com.colorbynumber.app.data.PlacementEventType
 import com.colorbynumber.app.data.PuzzleRepository
-import com.colorbynumber.app.data.SavedPuzzle
 import com.colorbynumber.app.engine.ColorQuantizer
 import com.colorbynumber.app.engine.Pixelator
 import com.colorbynumber.app.engine.PuzzleState
@@ -67,9 +66,6 @@ class MainActivity : ComponentActivity() {
                     var isProcessing by remember { mutableStateOf(false) }
                     // Track where PUZZLE was entered from so back goes to the right screen
                     var puzzleOrigin by remember { mutableStateOf(Screen.HOME) }
-
-                    // History list, loaded when navigating to HISTORY screen
-                    var savedPuzzles by remember { mutableStateOf<List<SavedPuzzle>>(emptyList()) }
                     // When true, HistoryScreen auto-opens the first completed puzzle's replay
                     var historyAutoOpenFirst by remember { mutableStateOf(false) }
 
@@ -135,13 +131,8 @@ class MainActivity : ComponentActivity() {
                                     galleryLauncher.launch("image/*")
                                 },
                                 onMyPuzzles = {
-                                    coroutineScope.launch {
-                                        val puzzles = withContext(Dispatchers.IO) {
-                                            repository.getAll()
-                                        }
-                                        savedPuzzles = puzzles
-                                        currentScreen = Screen.HISTORY
-                                    }
+                                    historyAutoOpenFirst = false
+                                    currentScreen = Screen.HISTORY
                                 },
                                 onPublicGallery = {
                                     currentScreen = Screen.GALLERY
@@ -155,9 +146,9 @@ class MainActivity : ComponentActivity() {
                                 currentScreen = Screen.HOME
                             }
                             HistoryScreen(
-                                puzzles = savedPuzzles,
                                 repository = repository,
                                 autoOpenFirst = historyAutoOpenFirst,
+                                onAutoOpenConsumed = { historyAutoOpenFirst = false },
                                 onResumePuzzle = { id ->
                                     isProcessing = true
                                     coroutineScope.launch {
@@ -171,18 +162,6 @@ class MainActivity : ComponentActivity() {
                                             currentScreen = Screen.PUZZLE
                                         }
                                         isProcessing = false
-                                    }
-                                },
-                                onDeletePuzzle = { id ->
-                                    coroutineScope.launch {
-                                        withContext(Dispatchers.IO) {
-                                            repository.deletePuzzle(id)
-                                        }
-                                        // Refresh the list
-                                        val puzzles = withContext(Dispatchers.IO) {
-                                            repository.getAll()
-                                        }
-                                        savedPuzzles = puzzles
                                     }
                                 },
                                 onBack = {
@@ -234,11 +213,14 @@ class MainActivity : ComponentActivity() {
                             val origin = puzzleOrigin
                             puzzleState?.let { state ->
                                 val navigateBack = {
-                                    coroutineScope.launch(Dispatchers.IO) {
-                                        repository.flush()
-                                        repository.snapshotUserColors(state)
+                                    coroutineScope.launch {
+                                        withContext(Dispatchers.IO) {
+                                            repository.flush()
+                                            repository.snapshotUserColors(state)
+                                        }
+                                        currentScreen = origin
                                     }
-                                    currentScreen = origin
+                                    Unit
                                 }
                                 BackHandler { navigateBack() }
                                 PuzzleScreen(
@@ -282,8 +264,6 @@ class MainActivity : ComponentActivity() {
                         Screen.COMPLETE -> {
                             val navigateToHistory = {
                                 coroutineScope.launch {
-                                    val puzzles = withContext(Dispatchers.IO) { repository.getAll() }
-                                    savedPuzzles = puzzles
                                     puzzleState = null
                                     capturedBitmap = null
                                     historyAutoOpenFirst = true
@@ -315,10 +295,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /**
-     * Attach the onCellChanged callback so every placement/erase is
-     * recorded via the repository's buffered event system.
-     */
     private fun attachEventRecording(
         state: PuzzleState,
         scope: kotlinx.coroutines.CoroutineScope

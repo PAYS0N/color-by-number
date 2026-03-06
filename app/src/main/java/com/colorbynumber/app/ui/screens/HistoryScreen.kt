@@ -33,6 +33,7 @@ import com.colorbynumber.app.data.PuzzleStatus
 import com.colorbynumber.app.data.SavedPuzzle
 import com.colorbynumber.app.engine.PuzzleReplayState
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
@@ -40,22 +41,40 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(
-    puzzles: List<SavedPuzzle>,
     repository: PuzzleRepository,
     onResumePuzzle: (Long) -> Unit,
-    onDeletePuzzle: (Long) -> Unit,
     onBack: () -> Unit,
-    autoOpenFirst: Boolean = false
+    autoOpenFirst: Boolean = false,
+    onAutoOpenConsumed: () -> Unit = {}
 ) {
+    val coroutineScope = rememberCoroutineScope()
+
+    // HistoryScreen owns its own data — loads fresh from DB every time
+    var puzzles by remember { mutableStateOf<List<SavedPuzzle>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    // Reload trigger — increment to force a refresh
+    var reloadTrigger by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(reloadTrigger) {
+        isLoading = true
+        val loaded = withContext(Dispatchers.IO) { repository.getAll() }
+        puzzles = loaded
+        isLoading = false
+    }
+
     // Dialog state
     var showCompletedDialog by remember { mutableStateOf<SavedPuzzle?>(null) }
     var showInProgressDialog by remember { mutableStateOf<SavedPuzzle?>(null) }
 
-    // Auto-open the most recent (first) puzzle's replay when directed from completion screen
-    LaunchedEffect(autoOpenFirst, puzzles) {
-        if (autoOpenFirst && showCompletedDialog == null) {
+    // Auto-open the most recent completed puzzle's replay (one-shot)
+    LaunchedEffect(puzzles) {
+        if (autoOpenFirst && puzzles.isNotEmpty()) {
             puzzles.firstOrNull { it.status == PuzzleStatus.COMPLETED }
-                ?.let { showCompletedDialog = it }
+                ?.let {
+                    onAutoOpenConsumed()
+                    showCompletedDialog = it
+                }
         }
     }
 
@@ -71,42 +90,55 @@ fun HistoryScreen(
             )
         }
     ) { padding ->
-        if (puzzles.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "No puzzles yet.\nTake a photo or pick from your gallery to get started!",
-                    textAlign = TextAlign.Center,
-                    fontSize = 16.sp,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                    modifier = Modifier.padding(32.dp)
-                )
+        when {
+            isLoading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
             }
-        } else {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(puzzles, key = { it.id }) { puzzle ->
-                    PuzzleCard(
-                        puzzle = puzzle,
-                        onClick = {
-                            if (puzzle.status == PuzzleStatus.COMPLETED) {
-                                showCompletedDialog = puzzle
-                            } else {
-                                showInProgressDialog = puzzle
-                            }
-                        }
+            puzzles.isEmpty() -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No puzzles yet.\nTake a photo or pick from your gallery to get started!",
+                        textAlign = TextAlign.Center,
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                        modifier = Modifier.padding(32.dp)
                     )
+                }
+            }
+            else -> {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(puzzles, key = { it.id }) { puzzle ->
+                        PuzzleCard(
+                            puzzle = puzzle,
+                            onClick = {
+                                if (puzzle.status == PuzzleStatus.COMPLETED) {
+                                    showCompletedDialog = puzzle
+                                } else {
+                                    showInProgressDialog = puzzle
+                                }
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -131,7 +163,11 @@ fun HistoryScreen(
             },
             onDelete = {
                 showInProgressDialog = null
-                onDeletePuzzle(puzzle.id)
+                val id = puzzle.id
+                coroutineScope.launch {
+                    withContext(Dispatchers.IO) { repository.deletePuzzle(id) }
+                    reloadTrigger++
+                }
             },
             onDismiss = { showInProgressDialog = null }
         )
@@ -286,9 +322,6 @@ private fun CompletedPuzzleDialog(
 
                 val state = replayState
                 if (state != null) {
-                    // Replay player replaces the old static image
-                    // clickable(false) wrapper prevents the outer Box's
-                    // clickable from dismissing when interacting with controls
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -411,11 +444,6 @@ private fun InProgressPuzzleDialog(
 // Helper functions
 // ---------------------------------------------------------------------------
 
-/**
- * Build a small thumbnail bitmap from the saved puzzle data.
- * For completed puzzles: shows the full-color image.
- * For in-progress: shows colored cells on a grey background.
- */
 private fun buildThumbnail(puzzle: SavedPuzzle): Bitmap? {
     return try {
         val size = puzzle.gridSize
@@ -432,13 +460,10 @@ private fun buildThumbnail(puzzle: SavedPuzzle): Bitmap? {
                 val targetRgb = palette[targetIdx]
 
                 val pixel = if (puzzle.status == PuzzleStatus.COMPLETED) {
-                    // Show full color
                     targetRgb or (0xFF shl 24)
                 } else if (userIdx != -1 && userIdx == targetIdx) {
-                    // Correctly colored cell
                     palette[userIdx] or (0xFF shl 24)
                 } else {
-                    // Greyscale for unfinished cells
                     val r = AndroidColor.red(targetRgb)
                     val g = AndroidColor.green(targetRgb)
                     val b = AndroidColor.blue(targetRgb)
@@ -449,16 +474,12 @@ private fun buildThumbnail(puzzle: SavedPuzzle): Bitmap? {
                 bitmap.setPixel(col, row, pixel)
             }
         }
-        // Scale up for display
         Bitmap.createScaledBitmap(bitmap, 400, 400, false)
     } catch (e: Exception) {
         null
     }
 }
 
-/**
- * Build a full-resolution color bitmap for the completed dialog.
- */
 private fun buildFullColorBitmap(puzzle: SavedPuzzle): Bitmap? {
     return try {
         val size = puzzle.gridSize
@@ -479,9 +500,6 @@ private fun buildFullColorBitmap(puzzle: SavedPuzzle): Bitmap? {
     }
 }
 
-/**
- * Compute progress as a fraction (0.0 to 1.0).
- */
 private fun computeProgress(puzzle: SavedPuzzle): Float {
     return try {
         val targetColors = bytesToIntArray(puzzle.targetColors)
