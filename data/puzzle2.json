@@ -1,4 +1,6 @@
 {
+    "name": "Pixel Art",
+    "gridSize": 60,
     "data": [
 {"y": 0, "x": 0, "color": "#ff9900"},
 {"y": 0, "x": 1, "color": "#0d6d6e"},
