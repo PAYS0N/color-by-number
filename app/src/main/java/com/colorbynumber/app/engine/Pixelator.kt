@@ -47,6 +47,21 @@ object Pixelator {
     }
 
     /**
+     * Crops the source to a centered square and downsamples to at most [maxSize] pixels.
+     * Call once per source image; reuse the result for all preview regenerations.
+     */
+    fun preparePreviewSource(source: Bitmap, maxSize: Int = 512): Bitmap {
+        val cropped = cropToSquare(source)
+        return if (cropped.width > maxSize) {
+            Bitmap.createScaledBitmap(cropped, maxSize, maxSize, true).also {
+                if (cropped !== source) cropped.recycle()
+            }
+        } else {
+            cropped
+        }
+    }
+
+    /**
      * Creates a greyscale version of the pixelated bitmap for preview display.
      */
     fun toGreyscale(bitmap: Bitmap): Bitmap {

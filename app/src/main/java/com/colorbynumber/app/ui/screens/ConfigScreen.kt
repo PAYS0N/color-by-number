@@ -29,13 +29,23 @@ fun ConfigScreen(
     var detailLevel by remember { mutableStateOf(ColorQuantizer.DetailLevel.MEDIUM) }
     var dropdownExpanded by remember { mutableStateOf(false) }
 
-    // Generate greyscale preview when grid size changes
+    // Pre-compute a small square crop of the source once; reused for all preview renders
     val currentGridSize = gridSize.toInt()
     var previewBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var previewSource by remember { mutableStateOf<Bitmap?>(null) }
 
-    LaunchedEffect(currentGridSize) {
+    LaunchedEffect(sourceBitmap) {
         withContext(Dispatchers.Default) {
-            val pixelated = Pixelator.pixelate(sourceBitmap, currentGridSize)
+            val ps = Pixelator.preparePreviewSource(sourceBitmap)
+            withContext(Dispatchers.Main) { previewSource = ps }
+        }
+    }
+
+    // Generate greyscale preview when grid size changes (uses small pre-cropped source)
+    LaunchedEffect(currentGridSize, previewSource) {
+        val src = previewSource ?: return@LaunchedEffect
+        withContext(Dispatchers.Default) {
+            val pixelated = Pixelator.pixelate(src, currentGridSize)
             val grey = Pixelator.toGreyscale(pixelated)
             // Scale up for display so pixels are visible
             val displaySize = 800
