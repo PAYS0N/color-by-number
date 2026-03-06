@@ -12,7 +12,6 @@ object AppSettings {
     private const val KEY_PREVENT_ERRORS = "prevent_errors"
     private const val KEY_PREVENT_OVERWRITE = "prevent_overwrite"
     private const val KEY_VIBRATE = "vibrate"
-    private const val KEY_NAVIGATOR_THRESHOLD = "navigator_threshold"
 
     private lateinit var prefs: SharedPreferences
 
@@ -32,7 +31,5 @@ object AppSettings {
         get() = prefs.getBoolean(KEY_VIBRATE, true)
         set(value) { prefs.edit().putBoolean(KEY_VIBRATE, value).apply() }
 
-    var navigatorThreshold: Int
-        get() = prefs.getInt(KEY_NAVIGATOR_THRESHOLD, 20)
-        set(value) { prefs.edit().putInt(KEY_NAVIGATOR_THRESHOLD, value).apply() }
+
 }

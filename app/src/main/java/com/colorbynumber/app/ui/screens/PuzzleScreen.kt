@@ -58,7 +58,7 @@ fun PuzzleScreen(
     var preventErrors by remember { mutableStateOf(AppSettings.preventErrors) }
     var preventOverwrite by remember { mutableStateOf(AppSettings.preventOverwrite) }
     var vibrateEnabled by remember { mutableStateOf(AppSettings.vibrate) }
-    var navigatorThreshold by remember { mutableIntStateOf(AppSettings.navigatorThreshold) }
+    var navigatorThreshold by remember { mutableIntStateOf(puzzleState.gridSize / 5) }
 
     val context = LocalContext.current
     val vibrator = remember { context.getSystemService(Vibrator::class.java) }
@@ -160,7 +160,6 @@ fun PuzzleScreen(
                                 value = navigatorThreshold.toFloat(),
                                 onValueChange = {
                                     navigatorThreshold = it.toInt()
-                                    AppSettings.navigatorThreshold = it.toInt()
                                 },
                                 valueRange = 0f..50f,
                                 steps = 49
