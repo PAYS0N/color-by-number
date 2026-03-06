@@ -88,9 +88,16 @@ class MainActivity : ComponentActivity() {
                     }
 
                     // Camera permission
+                    var pendingCameraNavigation by remember { mutableStateOf(false) }
                     val cameraPermission = rememberPermissionState(
                         android.Manifest.permission.CAMERA
                     )
+                    LaunchedEffect(cameraPermission.status) {
+                        if (pendingCameraNavigation && cameraPermission.status.isGranted) {
+                            pendingCameraNavigation = false
+                            currentScreen = Screen.CAMERA
+                        }
+                    }
 
                     // Gallery picker
                     val galleryLauncher = rememberLauncherForActivityResult(
@@ -114,6 +121,7 @@ class MainActivity : ComponentActivity() {
                                     if (cameraPermission.status.isGranted) {
                                         currentScreen = Screen.CAMERA
                                     } else {
+                                        pendingCameraNavigation = true
                                         cameraPermission.launchPermissionRequest()
                                     }
                                 },
