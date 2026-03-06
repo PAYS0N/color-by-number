@@ -680,7 +680,7 @@ private fun screenToCell(
 private fun vibrateHaptic(vibrator: Vibrator?, large: Boolean) {
     vibrator ?: return
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        vibrator.vibrate(VibrationEffect.createOneShot(if (large) 60L else 30L, if (large) 255 else 60))
+        vibrator.vibrate(VibrationEffect.createOneShot(if (large) 60L else 30L, if (large) 255 else 30))
     } else {
         @Suppress("DEPRECATION")
         vibrator.vibrate(if (large) 120L else 30L)
