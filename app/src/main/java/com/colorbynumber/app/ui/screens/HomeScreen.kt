@@ -5,6 +5,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -17,7 +18,8 @@ import androidx.compose.ui.unit.sp
 fun HomeScreen(
     onTakePhoto: () -> Unit,
     onPickGallery: () -> Unit,
-    onMyPuzzles: () -> Unit
+    onMyPuzzles: () -> Unit,
+    onPublicGallery: () -> Unit
 ) {
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -101,6 +103,23 @@ fun HomeScreen(
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text("Pick from Gallery", fontSize = 18.sp)
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            OutlinedButton(
+                onClick = onPublicGallery,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+            ) {
+                Icon(
+                    Icons.Default.Public,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text("Public Gallery", fontSize = 18.sp)
             }
         }
     }

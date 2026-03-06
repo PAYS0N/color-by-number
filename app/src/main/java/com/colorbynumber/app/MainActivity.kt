@@ -22,6 +22,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import com.colorbynumber.app.data.AppDatabase
+import com.colorbynumber.app.data.GalleryRepository
 import com.colorbynumber.app.data.PlacementEventType
 import com.colorbynumber.app.data.PuzzleRepository
 import com.colorbynumber.app.data.SavedPuzzle
@@ -38,7 +39,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 enum class Screen {
-    HOME, CAMERA, CONFIG, PUZZLE, COMPLETE, HISTORY
+    HOME, CAMERA, CONFIG, PUZZLE, COMPLETE, HISTORY, GALLERY
 }
 
 class MainActivity : ComponentActivity() {
@@ -141,6 +142,9 @@ class MainActivity : ComponentActivity() {
                                         savedPuzzles = puzzles
                                         currentScreen = Screen.HISTORY
                                     }
+                                },
+                                onPublicGallery = {
+                                    currentScreen = Screen.GALLERY
                                 }
                             )
                         }
@@ -248,6 +252,29 @@ class MainActivity : ComponentActivity() {
                                     onBack = { navigateBack() }
                                 )
                             }
+                        }
+
+                        Screen.GALLERY -> {
+                            BackHandler { currentScreen = Screen.HOME }
+                            GalleryScreen(
+                                onSelectPuzzle = { galleryPuzzle ->
+                                    isProcessing = true
+                                    coroutineScope.launch {
+                                        val state = withContext(Dispatchers.Default) {
+                                            GalleryRepository.toPuzzleState(galleryPuzzle)
+                                        }
+                                        withContext(Dispatchers.IO) {
+                                            repository.createPuzzle(state)
+                                        }
+                                        attachEventRecording(state, coroutineScope)
+                                        puzzleState = state
+                                        puzzleOrigin = Screen.GALLERY
+                                        isProcessing = false
+                                        currentScreen = Screen.PUZZLE
+                                    }
+                                },
+                                onBack = { currentScreen = Screen.HOME }
+                            )
                         }
 
                         Screen.COMPLETE -> {
