@@ -8,14 +8,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.activity.compose.BackHandler
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
@@ -27,6 +25,7 @@ import com.colorbynumber.app.data.PlacementEventType
 import com.colorbynumber.app.data.PuzzleRepository
 import com.colorbynumber.app.engine.ColorQuantizer
 import com.colorbynumber.app.engine.Pixelator
+import com.colorbynumber.app.engine.PixelArtState
 import com.colorbynumber.app.engine.PuzzleState
 import com.colorbynumber.app.ui.screens.*
 import com.colorbynumber.app.ui.theme.ColorByNumberTheme
@@ -38,7 +37,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 enum class Screen {
-    HOME, CAMERA, CONFIG, PUZZLE, COMPLETE, HISTORY, GALLERY
+    HOME, CAMERA, CONFIG, PUZZLE, COMPLETE, HISTORY, GALLERY, PIXEL_ART
 }
 
 class MainActivity : ComponentActivity() {
@@ -68,6 +67,10 @@ class MainActivity : ComponentActivity() {
                     var puzzleOrigin by remember { mutableStateOf(Screen.HOME) }
                     // When true, HistoryScreen auto-opens the first completed puzzle's replay
                     var historyAutoOpenFirst by remember { mutableStateOf(false) }
+                    // Pixel art state
+                    var pixelArtState by remember { mutableStateOf<PixelArtState?>(null) }
+                    var showPixelArtSizeDialog by remember { mutableStateOf(false) }
+                    var pixelArtGridSize by remember { mutableIntStateOf(32) }
 
                     val context = LocalContext.current
                     val coroutineScope = rememberCoroutineScope()
@@ -136,6 +139,9 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onPublicGallery = {
                                     currentScreen = Screen.GALLERY
+                                },
+                                onPixelArt = {
+                                    showPixelArtSizeDialog = true
                                 }
                             )
                         }
@@ -261,6 +267,16 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
+                        Screen.PIXEL_ART -> {
+                            BackHandler { currentScreen = Screen.HOME }
+                            pixelArtState?.let { state ->
+                                PixelArtScreen(
+                                    state = state,
+                                    onBack = { currentScreen = Screen.HOME }
+                                )
+                            }
+                        }
+
                         Screen.COMPLETE -> {
                             val navigateToHistory = {
                                 coroutineScope.launch {
@@ -289,6 +305,44 @@ class MainActivity : ComponentActivity() {
                         ) {
                             CircularProgressIndicator()
                         }
+                    }
+
+                    // Pixel art canvas size dialog
+                    if (showPixelArtSizeDialog) {
+                        AlertDialog(
+                            onDismissRequest = { showPixelArtSizeDialog = false },
+                            title = { Text("Canvas Size") },
+                            text = {
+                                Column {
+                                    Text(
+                                        text = "${pixelArtGridSize}×${pixelArtGridSize}",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Slider(
+                                        value = pixelArtGridSize.toFloat(),
+                                        onValueChange = { pixelArtGridSize = it.toInt() },
+                                        valueRange = 8f..100f,
+                                        steps = 91
+                                    )
+                                }
+                            },
+                            confirmButton = {
+                                Button(onClick = {
+                                    showPixelArtSizeDialog = false
+                                    pixelArtState = PixelArtState(pixelArtGridSize)
+                                    currentScreen = Screen.PIXEL_ART
+                                }) {
+                                    Text("Create")
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showPixelArtSizeDialog = false }) {
+                                    Text("Cancel")
+                                }
+                            }
+                        )
                     }
                 }
             }
