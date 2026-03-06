@@ -18,7 +18,7 @@ import com.colorbynumber.app.engine.PuzzleState
 @Composable
 fun CompletionScreen(
     puzzleState: PuzzleState,
-    onHome: () -> Unit
+    onViewReplay: () -> Unit
 ) {
     // Generate the full-color image from the puzzle
     val colorBitmap = remember {
@@ -67,12 +67,12 @@ fun CompletionScreen(
             Spacer(modifier = Modifier.height(32.dp))
 
             Button(
-                onClick = onHome,
+                onClick = onViewReplay,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)
             ) {
-                Text("Back to Home", fontSize = 18.sp)
+                Text("View Replay", fontSize = 18.sp)
             }
         }
     }

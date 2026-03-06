@@ -44,11 +44,20 @@ fun HistoryScreen(
     repository: PuzzleRepository,
     onResumePuzzle: (Long) -> Unit,
     onDeletePuzzle: (Long) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    autoOpenFirst: Boolean = false
 ) {
     // Dialog state
     var showCompletedDialog by remember { mutableStateOf<SavedPuzzle?>(null) }
     var showInProgressDialog by remember { mutableStateOf<SavedPuzzle?>(null) }
+
+    // Auto-open the most recent (first) puzzle's replay when directed from completion screen
+    LaunchedEffect(autoOpenFirst, puzzles) {
+        if (autoOpenFirst && showCompletedDialog == null) {
+            puzzles.firstOrNull { it.status == PuzzleStatus.COMPLETED }
+                ?.let { showCompletedDialog = it }
+        }
+    }
 
     Scaffold(
         topBar = {

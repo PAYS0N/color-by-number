@@ -69,6 +69,8 @@ class MainActivity : ComponentActivity() {
 
                     // History list, loaded when navigating to HISTORY screen
                     var savedPuzzles by remember { mutableStateOf<List<SavedPuzzle>>(emptyList()) }
+                    // When true, HistoryScreen auto-opens the first completed puzzle's replay
+                    var historyAutoOpenFirst by remember { mutableStateOf(false) }
 
                     val context = LocalContext.current
                     val coroutineScope = rememberCoroutineScope()
@@ -144,10 +146,14 @@ class MainActivity : ComponentActivity() {
                         }
 
                         Screen.HISTORY -> {
-                            BackHandler { currentScreen = Screen.HOME }
+                            BackHandler {
+                                historyAutoOpenFirst = false
+                                currentScreen = Screen.HOME
+                            }
                             HistoryScreen(
                                 puzzles = savedPuzzles,
                                 repository = repository,
+                                autoOpenFirst = historyAutoOpenFirst,
                                 onResumePuzzle = { id ->
                                     isProcessing = true
                                     coroutineScope.launch {
@@ -175,7 +181,10 @@ class MainActivity : ComponentActivity() {
                                         savedPuzzles = puzzles
                                     }
                                 },
-                                onBack = { currentScreen = Screen.HOME }
+                                onBack = {
+                                    historyAutoOpenFirst = false
+                                    currentScreen = Screen.HOME
+                                }
                             )
                         }
 
@@ -242,19 +251,22 @@ class MainActivity : ComponentActivity() {
                         }
 
                         Screen.COMPLETE -> {
-                            BackHandler {
-                                puzzleState = null
-                                capturedBitmap = null
-                                currentScreen = Screen.HOME
+                            val navigateToHistory = {
+                                coroutineScope.launch {
+                                    val puzzles = withContext(Dispatchers.IO) { repository.getAll() }
+                                    savedPuzzles = puzzles
+                                    puzzleState = null
+                                    capturedBitmap = null
+                                    historyAutoOpenFirst = true
+                                    currentScreen = Screen.HISTORY
+                                }
+                                Unit
                             }
+                            BackHandler { navigateToHistory() }
                             puzzleState?.let { state ->
                                 CompletionScreen(
                                     puzzleState = state,
-                                    onHome = {
-                                        puzzleState = null
-                                        capturedBitmap = null
-                                        currentScreen = Screen.HOME
-                                    }
+                                    onViewReplay = { navigateToHistory() }
                                 )
                             }
                         }
