@@ -296,48 +296,73 @@ private fun InProgressPuzzleDialog(
         computeProgress(puzzle)
     }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text("${puzzle.gridSize}×${puzzle.gridSize} Puzzle")
-        },
-        text = {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                thumbnail?.let { bmp ->
-                    Image(
-                        bitmap = bmp.asImageBitmap(),
-                        contentDescription = "Puzzle preview",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(1f)
-                            .clip(RoundedCornerShape(8.dp)),
-                        contentScale = ContentScale.Fit
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Delete puzzle?") },
+            text = { Text("This will permanently delete the puzzle and all progress. This cannot be undone.") },
+            confirmButton = {
+                Button(
+                    onClick = onDelete,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    } else {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = {
+                Text("${puzzle.gridSize}×${puzzle.gridSize} Puzzle")
+            },
+            text = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    thumbnail?.let { bmp ->
+                        Image(
+                            bitmap = bmp.asImageBitmap(),
+                            contentDescription = "Puzzle preview",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(1f)
+                                .clip(RoundedCornerShape(8.dp)),
+                            contentScale = ContentScale.Fit
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "${(progress * 100).toInt()}% complete",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                     )
                 }
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "${(progress * 100).toInt()}% complete",
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                )
+            },
+            confirmButton = {
+                Button(onClick = onResume) {
+                    Text("Resume")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDeleteConfirm = true },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Delete")
+                }
             }
-        },
-        confirmButton = {
-            Button(onClick = onResume) {
-                Text("Resume")
-            }
-        },
-        dismissButton = {
-            TextButton(
-                onClick = onDelete,
-                colors = ButtonDefaults.textButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error
-                )
-            ) {
-                Text("Delete")
-            }
-        }
-    )
+        )
+    }
 }
 
 // ---------------------------------------------------------------------------
