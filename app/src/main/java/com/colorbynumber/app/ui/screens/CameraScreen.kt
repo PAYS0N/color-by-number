@@ -1,6 +1,5 @@
 package com.colorbynumber.app.ui.screens
 
-import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
@@ -8,6 +7,7 @@ import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -21,9 +21,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import java.util.concurrent.ExecutorService
@@ -41,6 +43,10 @@ fun CameraScreen(
     var cameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
     val cameraExecutor: ExecutorService = remember { Executors.newSingleThreadExecutor() }
 
+    // Keep Camera ref in a MutableState so pointerInput lambda always sees the latest value
+    val cameraRef = remember { mutableStateOf<Camera?>(null) }
+    val currentZoom = remember { mutableFloatStateOf(1f) }
+
     DisposableEffect(Unit) {
         onDispose {
             cameraProvider?.unbindAll()
@@ -48,7 +54,21 @@ fun CameraScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                detectTransformGestures { _, _, gestureZoom, _ ->
+                    val cam = cameraRef.value ?: return@detectTransformGestures
+                    val zoomState = cam.cameraInfo.zoomState.value ?: return@detectTransformGestures
+                    val minZoom = zoomState.minZoomRatio
+                    val maxZoom = zoomState.maxZoomRatio
+                    val newZoom = (currentZoom.floatValue * gestureZoom).coerceIn(minZoom, maxZoom)
+                    currentZoom.floatValue = newZoom
+                    cam.cameraControl.setZoomRatio(newZoom)
+                }
+            }
+    ) {
         AndroidView(
             factory = { ctx ->
                 val previewView = PreviewView(ctx)
@@ -71,11 +91,8 @@ fun CameraScreen(
 
                     try {
                         provider.unbindAll()
-                        // Use ViewPort so ImageCapture captures exactly what the preview shows.
-                        // previewView.viewPort is non-null once the view is measured (which
-                        // always happens before the camera-provider future resolves in practice).
                         val viewPort = previewView.viewPort
-                        if (viewPort != null) {
+                        val cam = if (viewPort != null) {
                             val useCaseGroup = UseCaseGroup.Builder()
                                 .addUseCase(preview)
                                 .addUseCase(capture)
@@ -85,6 +102,7 @@ fun CameraScreen(
                         } else {
                             provider.bindToLifecycle(lifecycleOwner, cameraSelector, preview, capture)
                         }
+                        cameraRef.value = cam
                     } catch (e: Exception) {
                         e.printStackTrace()
                     }
@@ -102,7 +120,6 @@ fun CameraScreen(
             val top = (size.height - sqSize) / 2f
             val dimColor = Color(0x88000000)
 
-            // Darken areas outside the square
             if (left > 0f) {
                 drawRect(dimColor, topLeft = Offset.Zero, size = Size(left, size.height))
                 drawRect(dimColor, topLeft = Offset(left + sqSize, 0f), size = Size(left, size.height))
@@ -112,7 +129,6 @@ fun CameraScreen(
                 drawRect(dimColor, topLeft = Offset(0f, top + sqSize), size = Size(size.width, top))
             }
 
-            // White border around the crop square
             drawRect(
                 color = Color.White,
                 topLeft = Offset(left, top),
@@ -136,6 +152,17 @@ fun CameraScreen(
             )
         }
 
+        // Zoom level indicator — shown above the capture button
+        val zoom = currentZoom.floatValue
+        Text(
+            text = "%.1f×".format(zoom),
+            color = Color.White,
+            fontSize = 16.sp,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 120.dp)
+        )
+
         // Capture button at the bottom center
         Button(
             onClick = {
@@ -147,7 +174,6 @@ fun CameraScreen(
                             val bitmap = imageProxyToBitmap(imageProxy)
                             imageProxy.close()
                             if (bitmap != null) {
-                                // Post to main thread
                                 android.os.Handler(android.os.Looper.getMainLooper()).post {
                                     onPhotoCaptured(bitmap)
                                 }
