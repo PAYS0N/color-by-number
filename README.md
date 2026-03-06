@@ -1,33 +1,10 @@
 # Color by Number
 
-Turn any photo into a color-by-number puzzle.
+Turn any photo into a color-by-number puzzle. Take a photo or pick one from your gallery, choose a grid size and color detail level, and the app pixelates and quantizes it into a numbered grid for you to fill in. Features include pinch-to-zoom, a scrolling palette bar that hides completed colors, prevent-errors and prevent-overwrite modes, a color navigator arrow, saved puzzles with replay, and a public gallery of pre-made puzzles.
 
-## Features (MVP)
+This project is open source — feel free to fork it or open a pull request. The only condition is that any distributed version must remain free and ad-free.
 
-- Take a photo or pick from gallery
-- Adjustable grid size (20×20 to 100×100)
-- Color detail level: Low / Medium / High
-- Greyscale preview hides the image until you color it
-- Tap cells to fill with the selected palette color
-- Scrolling palette bar that hides completed colors
-- Eraser tool
-- Prevent Errors mode (default on): blocks wrong color placement
-- Prevent Overwrite mode (default on): protects correctly colored cells
-- Pinch-to-zoom with pan on the puzzle grid
-- Selected color highlights matching cells on the grid
-- Completion screen reveals the full-color image
-
-## Build
-
-### Prerequisites
-- Android Studio Hedgehog (2023.1.1) or newer
-- JDK 17
-- Android SDK 34
-
-### Steps
-1. Open this folder in Android Studio ("Open an existing project")
-2. Let Gradle sync (first time takes a few minutes)
-3. Run on a device or emulator: Run > Run 'app'
+This app was written entirely using Claude Code with no manual coding. As a result, the codebase may be difficult to work with or understand.
 
 ## Publish to Google Play Store
 
@@ -59,27 +36,3 @@ Turn any photo into a color-by-number puzzle.
    - Feature graphic: 1024x500 image (can be simple)
    - App icon: auto-generated from the adaptive icon
 9. Submit for review (typically takes a few hours to a couple days)
-
-## Project Structure
-
-```
-app/src/main/java/com/colorbynumber/app/
-├── MainActivity.kt              # Single-activity navigation
-├── engine/
-│   ├── Pixelator.kt             # Square crop + downscale
-│   ├── ColorQuantizer.kt        # K-means + RGB distance merge
-│   └── PuzzleState.kt           # Game state + rules
-└── ui/
-    ├── theme/Theme.kt           # Material 3 theme
-    └── screens/
-        ├── HomeScreen.kt        # Landing page
-        ├── CameraScreen.kt      # CameraX capture
-        ├── ConfigScreen.kt      # Grid size + detail config
-        ├── PuzzleScreen.kt      # Main game grid + palette
-        └── CompletionScreen.kt  # Victory screen
-```
-
-## Deferred Features
-- Save/resume puzzles (Room database)
-- Pre-made puzzle database / browsing
-- Undo/redo
