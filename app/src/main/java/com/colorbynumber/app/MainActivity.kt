@@ -244,10 +244,12 @@ class MainActivity : ComponentActivity() {
                                 PuzzleScreen(
                                     puzzleState = state,
                                     onComplete = {
-                                        coroutineScope.launch(Dispatchers.IO) {
-                                            repository.markCompleted(state)
+                                        coroutineScope.launch {
+                                            withContext(Dispatchers.IO) {
+                                                repository.markCompleted(state)
+                                            }
+                                            currentScreen = Screen.COMPLETE
                                         }
-                                        currentScreen = Screen.COMPLETE
                                     },
                                     onBack = { navigateBack() }
                                 )
