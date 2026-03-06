@@ -16,6 +16,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.activity.compose.BackHandler
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -63,6 +64,8 @@ class MainActivity : ComponentActivity() {
                     var capturedBitmap by remember { mutableStateOf<Bitmap?>(null) }
                     var puzzleState by remember { mutableStateOf<PuzzleState?>(null) }
                     var isProcessing by remember { mutableStateOf(false) }
+                    // Track where PUZZLE was entered from so back goes to the right screen
+                    var puzzleOrigin by remember { mutableStateOf(Screen.HOME) }
 
                     // History list, loaded when navigating to HISTORY screen
                     var savedPuzzles by remember { mutableStateOf<List<SavedPuzzle>>(emptyList()) }
@@ -141,6 +144,7 @@ class MainActivity : ComponentActivity() {
                         }
 
                         Screen.HISTORY -> {
+                            BackHandler { currentScreen = Screen.HOME }
                             HistoryScreen(
                                 puzzles = savedPuzzles,
                                 onResumePuzzle = { id ->
@@ -152,6 +156,7 @@ class MainActivity : ComponentActivity() {
                                         if (state != null) {
                                             attachEventRecording(state, coroutineScope)
                                             puzzleState = state
+                                            puzzleOrigin = Screen.HISTORY
                                             currentScreen = Screen.PUZZLE
                                         }
                                         isProcessing = false
@@ -174,6 +179,7 @@ class MainActivity : ComponentActivity() {
                         }
 
                         Screen.CAMERA -> {
+                            BackHandler { currentScreen = Screen.HOME }
                             CameraScreen(
                                 onPhotoCaptured = { bitmap ->
                                     capturedBitmap = bitmap
@@ -184,6 +190,7 @@ class MainActivity : ComponentActivity() {
                         }
 
                         Screen.CONFIG -> {
+                            BackHandler { currentScreen = Screen.HOME }
                             capturedBitmap?.let { bmp ->
                                 ConfigScreen(
                                     sourceBitmap = bmp,
@@ -199,6 +206,7 @@ class MainActivity : ComponentActivity() {
                                             }
                                             attachEventRecording(state, coroutineScope)
                                             puzzleState = state
+                                            puzzleOrigin = Screen.HOME
                                             isProcessing = false
                                             currentScreen = Screen.PUZZLE
                                         }
@@ -209,7 +217,16 @@ class MainActivity : ComponentActivity() {
                         }
 
                         Screen.PUZZLE -> {
+                            val origin = puzzleOrigin
                             puzzleState?.let { state ->
+                                val navigateBack = {
+                                    coroutineScope.launch(Dispatchers.IO) {
+                                        repository.flush()
+                                        repository.snapshotUserColors(state)
+                                    }
+                                    currentScreen = origin
+                                }
+                                BackHandler { navigateBack() }
                                 PuzzleScreen(
                                     puzzleState = state,
                                     onComplete = {
@@ -218,19 +235,17 @@ class MainActivity : ComponentActivity() {
                                         }
                                         currentScreen = Screen.COMPLETE
                                     },
-                                    onBack = {
-                                        // Snapshot progress before leaving
-                                        coroutineScope.launch(Dispatchers.IO) {
-                                            repository.flush()
-                                            repository.snapshotUserColors(state)
-                                        }
-                                        currentScreen = Screen.HOME
-                                    }
+                                    onBack = { navigateBack() }
                                 )
                             }
                         }
 
                         Screen.COMPLETE -> {
+                            BackHandler {
+                                puzzleState = null
+                                capturedBitmap = null
+                                currentScreen = Screen.HOME
+                            }
                             puzzleState?.let { state ->
                                 CompletionScreen(
                                     puzzleState = state,
