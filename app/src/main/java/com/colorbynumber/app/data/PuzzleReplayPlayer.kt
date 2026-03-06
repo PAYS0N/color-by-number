@@ -55,7 +55,9 @@ fun PuzzleReplayPlayer(
         replayState.palette.map { rgb ->
             val r = AndroidColor.red(rgb); val g = AndroidColor.green(rgb); val b = AndroidColor.blue(rgb)
             val grey = (0.299 * r + 0.587 * g + 0.114 * b).toInt().coerceIn(0, 255)
-            Color(grey, grey, grey)
+            // Blend 50% toward white so dark cells still visibly change when colored
+            val lightened = (grey * 0.6 + 255 * 0.4).toInt().coerceIn(0, 255)
+            Color(lightened, lightened, lightened)
         }
     }
 
@@ -123,7 +125,7 @@ fun PuzzleReplayPlayer(
         bmp
     }
 
-    Box(modifier = modifier) {
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         // Grid image
         Canvas(
             modifier = Modifier
@@ -138,74 +140,64 @@ fun PuzzleReplayPlayer(
             )
         }
 
-        // Play/Pause controls — overlay at bottom center of the image
-        Box(
+        // Play/Pause controls below the image
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(1f),
-            contentAlignment = Alignment.BottomCenter
+                .padding(top = 12.dp, start = 16.dp, end = 16.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.padding(bottom = 12.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Play / Pause button
-                FilledIconButton(
-                    onClick = {
-                        when (playbackState) {
-                            ReplayPlaybackState.SHOWING_COMPLETE -> {
-                                // Start replay from scratch
-                                replayState.reset()
-                                currentFrame = 0
-                                playbackState = ReplayPlaybackState.PLAYING
-                            }
-                            ReplayPlaybackState.PLAYING -> {
-                                playbackState = ReplayPlaybackState.PAUSED
-                            }
-                            ReplayPlaybackState.PAUSED -> {
-                                playbackState = ReplayPlaybackState.PLAYING
-                            }
+            FilledIconButton(
+                onClick = {
+                    when (playbackState) {
+                        ReplayPlaybackState.SHOWING_COMPLETE -> {
+                            replayState.reset()
+                            currentFrame = 0
+                            playbackState = ReplayPlaybackState.PLAYING
                         }
+                        ReplayPlaybackState.PLAYING -> {
+                            playbackState = ReplayPlaybackState.PAUSED
+                        }
+                        ReplayPlaybackState.PAUSED -> {
+                            playbackState = ReplayPlaybackState.PLAYING
+                        }
+                    }
+                },
+                shape = CircleShape,
+                modifier = Modifier.size(48.dp),
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) {
+                Icon(
+                    imageVector = when (playbackState) {
+                        ReplayPlaybackState.PLAYING -> Icons.Default.Pause
+                        else -> Icons.Default.PlayArrow
                     },
-                    shape = CircleShape,
-                    modifier = Modifier.size(48.dp),
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = Color.Black.copy(alpha = 0.5f),
-                        contentColor = Color.White
-                    )
-                ) {
-                    Icon(
-                        imageVector = when (playbackState) {
-                            ReplayPlaybackState.PLAYING -> Icons.Default.Pause
-                            else -> Icons.Default.PlayArrow
-                        },
-                        contentDescription = when (playbackState) {
-                            ReplayPlaybackState.PLAYING -> "Pause"
-                            else -> "Play"
-                        },
-                        modifier = Modifier.size(28.dp)
-                    )
-                }
+                    contentDescription = when (playbackState) {
+                        ReplayPlaybackState.PLAYING -> "Pause"
+                        else -> "Play"
+                    },
+                    modifier = Modifier.size(28.dp)
+                )
+            }
 
-                // Progress indicator during playback
-                if (playbackState == ReplayPlaybackState.PLAYING ||
-                    playbackState == ReplayPlaybackState.PAUSED
-                ) {
-                    Spacer(modifier = Modifier.width(12.dp))
-                    LinearProgressIndicator(
-                        progress = {
-                            if (replayState.totalFrames > 0) {
-                                currentFrame.toFloat() / replayState.totalFrames
-                            } else 0f
-                        },
-                        modifier = Modifier
-                            .width(120.dp)
-                            .height(4.dp),
-                        color = Color.White,
-                        trackColor = Color.White.copy(alpha = 0.3f)
-                    )
-                }
+            if (playbackState == ReplayPlaybackState.PLAYING ||
+                playbackState == ReplayPlaybackState.PAUSED
+            ) {
+                Spacer(modifier = Modifier.width(12.dp))
+                LinearProgressIndicator(
+                    progress = {
+                        if (replayState.totalFrames > 0) {
+                            currentFrame.toFloat() / replayState.totalFrames
+                        } else 0f
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(4.dp),
+                )
             }
         }
     }
