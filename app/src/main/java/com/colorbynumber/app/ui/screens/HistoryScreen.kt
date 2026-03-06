@@ -1,7 +1,11 @@
 package com.colorbynumber.app.ui.screens
 
+import android.content.ContentValues
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Color as AndroidColor
+import android.os.Build
+import android.provider.MediaStore
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -14,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,6 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -290,6 +296,9 @@ private fun CompletedPuzzleDialog(
     var replayState by remember { mutableStateOf<PuzzleReplayState?>(null) }
     var loadError by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var saveStatus by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(puzzle.id) {
         val state = withContext(Dispatchers.IO) {
@@ -340,10 +349,11 @@ private fun CompletedPuzzleDialog(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.padding(24.dp)
                 ) {
-                    // Top row: delete + close
+                    // Top row: delete + save + close
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         TextButton(
                             onClick = { showDeleteConfirm = true },
@@ -353,12 +363,43 @@ private fun CompletedPuzzleDialog(
                         ) {
                             Text("Delete")
                         }
-                        IconButton(onClick = onDismiss) {
-                            Icon(
-                                Icons.Default.Close,
-                                contentDescription = "Close",
-                                tint = Color.White
-                            )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            saveStatus?.let {
+                                Text(
+                                    text = it,
+                                    fontSize = 12.sp,
+                                    color = Color.White.copy(alpha = 0.8f),
+                                    modifier = Modifier.padding(end = 4.dp)
+                                )
+                            }
+                            IconButton(onClick = {
+                                coroutineScope.launch {
+                                    val bitmap = withContext(Dispatchers.Default) {
+                                        buildFullColorBitmap(puzzle)
+                                    }
+                                    if (bitmap != null) {
+                                        val ok = withContext(Dispatchers.IO) {
+                                            saveImageToGallery(context, bitmap)
+                                        }
+                                        saveStatus = if (ok) "Saved!" else "Failed"
+                                    } else {
+                                        saveStatus = "Failed"
+                                    }
+                                }
+                            }) {
+                                Icon(
+                                    Icons.Default.Download,
+                                    contentDescription = "Save image",
+                                    tint = Color.White
+                                )
+                            }
+                            IconButton(onClick = onDismiss) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Close",
+                                    tint = Color.White
+                                )
+                            }
                         }
                     }
 
@@ -562,4 +603,31 @@ private fun bytesToIntArray(bytes: ByteArray): IntArray {
     val result = IntArray(intBuf.remaining())
     intBuf.get(result)
     return result
+}
+
+private fun saveImageToGallery(context: Context, bitmap: Bitmap): Boolean {
+    return try {
+        val filename = "color_by_number_${System.currentTimeMillis()}.png"
+        val values = ContentValues().apply {
+            put(MediaStore.Images.Media.DISPLAY_NAME, filename)
+            put(MediaStore.Images.Media.MIME_TYPE, "image/png")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/Color by Number")
+                put(MediaStore.Images.Media.IS_PENDING, 1)
+            }
+        }
+        val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+            ?: return false
+        context.contentResolver.openOutputStream(uri)?.use { out ->
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            values.clear()
+            values.put(MediaStore.Images.Media.IS_PENDING, 0)
+            context.contentResolver.update(uri, values, null, null)
+        }
+        true
+    } catch (e: Exception) {
+        false
+    }
 }
