@@ -443,7 +443,8 @@ private fun buildThumbnail(puzzle: SavedPuzzle): Bitmap? {
                     val g = AndroidColor.green(targetRgb)
                     val b = AndroidColor.blue(targetRgb)
                     val grey = (0.299 * r + 0.587 * g + 0.114 * b).toInt().coerceIn(0, 255)
-                    AndroidColor.rgb(grey, grey, grey)
+                    val lightened = (grey * 0.6 + 255 * 0.4).toInt().coerceIn(0, 255)
+                    AndroidColor.rgb(lightened, lightened, lightened)
                 }
                 bitmap.setPixel(col, row, pixel)
             }

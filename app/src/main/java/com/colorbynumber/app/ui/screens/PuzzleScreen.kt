@@ -239,7 +239,7 @@ private fun PuzzleGrid(
         puzzleState.palette.map { rgb ->
             val r = AndroidColor.red(rgb); val g = AndroidColor.green(rgb); val b = AndroidColor.blue(rgb)
             val grey = (0.299 * r + 0.587 * g + 0.114 * b).toInt().coerceIn(0, 255)
-            Color(grey, grey, grey)
+            Color(grey, grey, grey, 153)
         }
     }
     // Bitmap cache for zoomed-out rendering: (updateTrigger at render time) → ImageBitmap
@@ -516,7 +516,7 @@ private fun PuzzleGrid(
                 gridPath.moveTo(lx, kotlin.math.floor(gridOriginY + firstVisRow * cellSize))
                 gridPath.lineTo(lx, kotlin.math.floor(gridOriginY + (lastVisRow + 1) * cellSize))
             }
-            drawPath(gridPath, color = Color(0x30000000), style = Stroke(width = 0.5f))
+            drawPath(gridPath, color = Color(0x40000000), style = Stroke(width = 1f))
 
             // Pass C: re-draw correct cells to cover their grid lines
             for (row in firstVisRow..lastVisRow) {
