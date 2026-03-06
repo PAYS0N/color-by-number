@@ -41,36 +41,52 @@ object ColorQuantizer {
         // Step 1: Get unique colors
         val uniqueColors = pixels.toSet().toList()
 
-        // If already fewer colors than target, just use them directly
-        if (uniqueColors.size <= targetColors) {
-            return buildResult(pixels, uniqueColors, gridSize)
+        // Step 2: K-means clustering if needed, otherwise start from unique colors
+        var palette: List<Int> = if (uniqueColors.size > targetColors) {
+            kMeans(pixels, targetColors, maxIterations = 20)
+        } else {
+            uniqueColors
         }
 
-        // Step 2: K-means clustering to target color count
-        var palette = kMeans(pixels, targetColors, maxIterations = 20)
-
-        // Step 3: Merge colors closer than baseMinDistance
+        // Step 3: Merge colors closer than baseMinDistance (always, even if we skipped k-means)
         palette = mergeClosePalette(palette, baseMinDistance)
 
         // Step 4: Assign each pixel to the nearest palette color
         val colorIndices = assignPixels(pixels, palette)
 
-        // Step 5: Determine palette order by first appearance
-        val paletteOrder = computePaletteOrder(colorIndices, palette.size, gridSize)
+        // Step 5: Merge small clusters — any color covering fewer than minClusterCells
+        //         gets reassigned to its nearest neighbour and removed from the palette.
+        val minClusterCells = gridSize // e.g. 20 cells on a 20×20 grid
+        palette = mergeSmallClusters(colorIndices, palette, minClusterCells)
+
+        // Step 6: Re-assign after small-cluster merges
+        val finalColorIndices = assignPixels(pixels, palette)
+
+        // Step 7: Determine palette order by first appearance
+        val paletteOrder = computePaletteOrder(finalColorIndices, palette.size, gridSize)
 
         return QuantizationResult(
-            colorIndices = colorIndices,
+            colorIndices = finalColorIndices,
             palette = palette,
             paletteOrder = paletteOrder,
             gridSize = gridSize
         )
     }
 
-    private fun buildResult(pixels: IntArray, uniqueColors: List<Int>, gridSize: Int): QuantizationResult {
-        val colorMap = uniqueColors.withIndex().associate { (i, c) -> c to i }
-        val indices = IntArray(pixels.size) { colorMap[pixels[it]] ?: 0 }
-        val order = computePaletteOrder(indices, uniqueColors.size, gridSize)
-        return QuantizationResult(indices, uniqueColors, order, gridSize)
+    /**
+     * Remove palette entries whose assigned cell count is below [minCells].
+     * Pixels that were assigned to removed entries will be re-assigned to their
+     * nearest remaining colour by the [assignPixels] call in the caller.
+     * Always retains at least 1 colour.
+     */
+    private fun mergeSmallClusters(colorIndices: IntArray, palette: List<Int>, minCells: Int): List<Int> {
+        val counts = IntArray(palette.size)
+        for (idx in colorIndices) counts[idx]++
+        val filtered = palette.filterIndexed { i, _ -> counts[i] >= minCells }
+        // Guard: never return an empty palette
+        return filtered.ifEmpty {
+            listOf(palette[counts.indices.maxByOrNull { counts[it] } ?: 0])
+        }
     }
 
     /**
