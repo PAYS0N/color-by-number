@@ -35,8 +35,11 @@ import androidx.compose.ui.unit.sp
 import com.colorbynumber.app.AppSettings
 import com.colorbynumber.app.engine.PuzzleState
 import kotlin.math.abs
+import kotlin.math.atan2
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.sqrt
+import kotlin.math.PI
 import kotlinx.coroutines.withTimeoutOrNull
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -55,6 +58,7 @@ fun PuzzleScreen(
     var preventErrors by remember { mutableStateOf(AppSettings.preventErrors) }
     var preventOverwrite by remember { mutableStateOf(AppSettings.preventOverwrite) }
     var vibrateEnabled by remember { mutableStateOf(AppSettings.vibrate) }
+    var navigatorEnabled by remember { mutableStateOf(AppSettings.navigator) }
 
     val context = LocalContext.current
     val vibrator = remember { context.getSystemService(Vibrator::class.java) }
@@ -147,6 +151,19 @@ fun PuzzleScreen(
                                 }
                             )
                         }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Color Navigator", modifier = Modifier.weight(1f))
+                            Switch(
+                                checked = navigatorEnabled,
+                                onCheckedChange = {
+                                    navigatorEnabled = it
+                                    AppSettings.navigator = it
+                                }
+                            )
+                        }
                         if (false) Button(
                             onClick = {
                                 puzzleState.targetColors.copyInto(puzzleState.userColors)
@@ -176,6 +193,7 @@ fun PuzzleScreen(
                     isEraser = isEraser,
                     updateTrigger = updateTrigger,
                     colorDisplayNumbers = colorDisplayNumbers,
+                    navigatorEnabled = navigatorEnabled,
                     onCellTap = { row, col ->
                         if (isEraser) {
                             puzzleState.eraseCell(row, col)
@@ -229,6 +247,7 @@ private fun PuzzleGrid(
     isEraser: Boolean,
     updateTrigger: Int,
     colorDisplayNumbers: Map<Int, Int>,
+    navigatorEnabled: Boolean,
     onCellTap: (row: Int, col: Int) -> Unit
 ) {
     val gridSize = puzzleState.gridSize
@@ -542,6 +561,85 @@ private fun PuzzleGrid(
                         val w = kotlin.math.floor(gridOriginX + (col + 1) * cellSize) - x
                         val h = kotlin.math.floor(gridOriginY + (row + 1) * cellSize) - y
                         drawRect(paletteColors[userColorIdx], topLeft = Offset(x, y), size = androidx.compose.ui.geometry.Size(w, h))
+                    }
+                }
+            }
+        }
+
+        // Navigator: arrow on the canvas edge pointing toward nearest off-screen unfilled cell
+        if (showNumbers && navigatorEnabled && selectedColorIndex != null) {
+            val selColor = selectedColorIndex
+            val firstVisCol = max(0, ((-gridOriginX) / cellSize).toInt())
+            val lastVisCol  = min(gridSize - 1, ((size.width - gridOriginX) / cellSize).toInt() + 1)
+            val firstVisRow = max(0, ((-gridOriginY) / cellSize).toInt())
+            val lastVisRow  = min(gridSize - 1, ((size.height - gridOriginY) / cellSize).toInt() + 1)
+
+            val hasVisible = (firstVisRow..lastVisRow).any { row ->
+                (firstVisCol..lastVisCol).any { col ->
+                    val idx = row * gridSize + col
+                    puzzleState.targetColors[idx] == selColor && puzzleState.userColors[idx] != selColor
+                }
+            }
+
+            if (!hasVisible) {
+                val vpCenterX = size.width / 2f
+                val vpCenterY = size.height / 2f
+                var bestDist = Float.MAX_VALUE
+                var bestCellX = 0f
+                var bestCellY = 0f
+                var found = false
+
+                for (row in 0 until gridSize) {
+                    for (col in 0 until gridSize) {
+                        val idx = row * gridSize + col
+                        if (puzzleState.targetColors[idx] == selColor && puzzleState.userColors[idx] != selColor) {
+                            val cx = gridOriginX + (col + 0.5f) * cellSize
+                            val cy = gridOriginY + (row + 0.5f) * cellSize
+                            val ddx = cx - vpCenterX
+                            val ddy = cy - vpCenterY
+                            val dist = ddx * ddx + ddy * ddy
+                            if (dist < bestDist) {
+                                bestDist = dist
+                                bestCellX = cx
+                                bestCellY = cy
+                                found = true
+                            }
+                        }
+                    }
+                }
+
+                if (found) {
+                    val dx = bestCellX - vpCenterX
+                    val dy = bestCellY - vpCenterY
+                    val len = sqrt(dx * dx + dy * dy)
+                    if (len > 0f) {
+                        val ndx = dx / len
+                        val ndy = dy / len
+                        val margin = 44f * density
+                        val halfW = size.width / 2f - margin
+                        val halfH = size.height / 2f - margin
+                        val tx = if (ndx != 0f) halfW / abs(ndx) else Float.MAX_VALUE
+                        val ty = if (ndy != 0f) halfH / abs(ndy) else Float.MAX_VALUE
+                        val t = min(tx, ty)
+                        val arrowX = vpCenterX + ndx * t
+                        val arrowY = vpCenterY + ndy * t
+                        val angleDeg = atan2(dy, dx).toFloat() * (180f / PI.toFloat())
+                        val arrowSize = 18f * density
+
+                        withTransform({
+                            translate(arrowX, arrowY)
+                            rotate(degrees = angleDeg, pivot = Offset.Zero)
+                        }) {
+                            drawCircle(Color.White.copy(alpha = 0.9f), radius = arrowSize * 0.85f, center = Offset.Zero)
+                            val path = Path()
+                            path.moveTo(arrowSize * 0.7f, 0f)
+                            path.lineTo(-arrowSize * 0.4f, -arrowSize * 0.55f)
+                            path.lineTo(-arrowSize * 0.05f, 0f)
+                            path.lineTo(-arrowSize * 0.4f, arrowSize * 0.55f)
+                            path.close()
+                            drawPath(path, color = Color.Black)
+                            drawCircle(Color.Black, radius = arrowSize * 0.85f, center = Offset.Zero, style = Stroke(width = 2f * density))
+                        }
                     }
                 }
             }

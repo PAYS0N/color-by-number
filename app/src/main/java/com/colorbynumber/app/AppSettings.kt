@@ -12,6 +12,7 @@ object AppSettings {
     private const val KEY_PREVENT_ERRORS = "prevent_errors"
     private const val KEY_PREVENT_OVERWRITE = "prevent_overwrite"
     private const val KEY_VIBRATE = "vibrate"
+    private const val KEY_NAVIGATOR = "navigator"
 
     private lateinit var prefs: SharedPreferences
 
@@ -30,4 +31,8 @@ object AppSettings {
     var vibrate: Boolean
         get() = prefs.getBoolean(KEY_VIBRATE, true)
         set(value) { prefs.edit().putBoolean(KEY_VIBRATE, value).apply() }
+
+    var navigator: Boolean
+        get() = prefs.getBoolean(KEY_NAVIGATOR, true)
+        set(value) { prefs.edit().putBoolean(KEY_NAVIGATOR, value).apply() }
 }
