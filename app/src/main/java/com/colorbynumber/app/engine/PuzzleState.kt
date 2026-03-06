@@ -17,6 +17,9 @@ class PuzzleState(
     /** User's placed colors. -1 means empty/uncolored. */
     val userColors: IntArray = IntArray(gridSize * gridSize) { -1 }
 
+    /** Number of cells pre-filled at creation (excluded from progress). */
+    var prefillCount: Int = 0
+
     /** Settings */
     var preventErrors: Boolean = true
     var preventOverwrite: Boolean = true

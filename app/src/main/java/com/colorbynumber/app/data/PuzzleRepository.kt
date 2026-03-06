@@ -42,7 +42,8 @@ class PuzzleRepository(
             targetColors = intArrayToBytes(puzzleState.targetColors),
             userColors = intArrayToBytes(puzzleState.userColors),
             preventErrors = puzzleState.preventErrors,
-            preventOverwrite = puzzleState.preventOverwrite
+            preventOverwrite = puzzleState.preventOverwrite,
+            prefillCount = puzzleState.prefillCount
         )
         val id = puzzleDao.insert(entity)
         activePuzzleId = id
@@ -71,6 +72,7 @@ class PuzzleRepository(
         userColors.copyInto(state.userColors)
         state.preventErrors = entity.preventErrors
         state.preventOverwrite = entity.preventOverwrite
+        state.prefillCount = entity.prefillCount
         return state
     }
 

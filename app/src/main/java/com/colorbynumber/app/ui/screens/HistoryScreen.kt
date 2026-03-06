@@ -504,10 +504,11 @@ private fun computeProgress(puzzle: SavedPuzzle): Float {
     return try {
         val targetColors = bytesToIntArray(puzzle.targetColors)
         val userColors = bytesToIntArray(puzzle.userColors)
-        val total = targetColors.size
-        if (total == 0) return 0f
+        val total = targetColors.size - puzzle.prefillCount
+        if (total <= 0) return 1f
         val correct = targetColors.indices.count { userColors[it] == targetColors[it] }
-        correct.toFloat() / total
+        val userCorrect = correct - puzzle.prefillCount
+        (userCorrect.coerceAtLeast(0)).toFloat() / total
     } catch (e: Exception) {
         0f
     }

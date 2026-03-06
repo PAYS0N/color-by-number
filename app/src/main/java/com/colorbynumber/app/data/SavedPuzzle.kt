@@ -30,6 +30,9 @@ data class SavedPuzzle(
     val preventErrors: Boolean = true,
     val preventOverwrite: Boolean = true,
 
+    /** Number of cells pre-filled at puzzle creation (excluded from progress). */
+    val prefillCount: Int = 0,
+
     val status: PuzzleStatus = PuzzleStatus.IN_PROGRESS,
 
     val createdAt: Long = System.currentTimeMillis(),
