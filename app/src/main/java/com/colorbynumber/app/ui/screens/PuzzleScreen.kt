@@ -58,7 +58,7 @@ fun PuzzleScreen(
     var preventErrors by remember { mutableStateOf(AppSettings.preventErrors) }
     var preventOverwrite by remember { mutableStateOf(AppSettings.preventOverwrite) }
     var vibrateEnabled by remember { mutableStateOf(AppSettings.vibrate) }
-    var navigatorEnabled by remember { mutableStateOf(AppSettings.navigator) }
+    var navigatorThreshold by remember { mutableIntStateOf(AppSettings.navigatorThreshold) }
 
     val context = LocalContext.current
     val vibrator = remember { context.getSystemService(Vibrator::class.java) }
@@ -151,17 +151,19 @@ fun PuzzleScreen(
                                 }
                             )
                         }
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Color Navigator", modifier = Modifier.weight(1f))
-                            Switch(
-                                checked = navigatorEnabled,
-                                onCheckedChange = {
-                                    navigatorEnabled = it
-                                    AppSettings.navigator = it
-                                }
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                if (navigatorThreshold == 0) "Color Navigator: Off"
+                                else "Color Navigator: ≤ $navigatorThreshold remaining"
+                            )
+                            Slider(
+                                value = navigatorThreshold.toFloat(),
+                                onValueChange = {
+                                    navigatorThreshold = it.toInt()
+                                    AppSettings.navigatorThreshold = it.toInt()
+                                },
+                                valueRange = 0f..50f,
+                                steps = 49
                             )
                         }
                         if (false) Button(
@@ -193,7 +195,7 @@ fun PuzzleScreen(
                     isEraser = isEraser,
                     updateTrigger = updateTrigger,
                     colorDisplayNumbers = colorDisplayNumbers,
-                    navigatorEnabled = navigatorEnabled,
+                    navigatorThreshold = navigatorThreshold,
                     onCellTap = { row, col ->
                         if (isEraser) {
                             puzzleState.eraseCell(row, col)
@@ -247,7 +249,7 @@ private fun PuzzleGrid(
     isEraser: Boolean,
     updateTrigger: Int,
     colorDisplayNumbers: Map<Int, Int>,
-    navigatorEnabled: Boolean,
+    navigatorThreshold: Int,
     onCellTap: (row: Int, col: Int) -> Unit
 ) {
     val gridSize = puzzleState.gridSize
@@ -567,7 +569,8 @@ private fun PuzzleGrid(
         }
 
         // Navigator: arrow on the canvas edge pointing toward nearest off-screen unfilled cell
-        if (showNumbers && navigatorEnabled && selectedColorIndex != null) {
+        if (showNumbers && navigatorThreshold > 0 && selectedColorIndex != null &&
+            puzzleState.remainingForColor(selectedColorIndex) <= navigatorThreshold) {
             val selColor = selectedColorIndex
             val firstVisCol = max(0, ((-gridOriginX) / cellSize).toInt())
             val lastVisCol  = min(gridSize - 1, ((size.width - gridOriginX) / cellSize).toInt())
