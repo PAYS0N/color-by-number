@@ -11,6 +11,7 @@ object AppSettings {
     private const val PREFS_NAME = "app_settings"
     private const val KEY_PREVENT_ERRORS = "prevent_errors"
     private const val KEY_PREVENT_OVERWRITE = "prevent_overwrite"
+    private const val KEY_VIBRATE = "vibrate"
 
     private lateinit var prefs: SharedPreferences
 
@@ -25,4 +26,8 @@ object AppSettings {
     var preventOverwrite: Boolean
         get() = prefs.getBoolean(KEY_PREVENT_OVERWRITE, true)
         set(value) { prefs.edit().putBoolean(KEY_PREVENT_OVERWRITE, value).apply() }
+
+    var vibrate: Boolean
+        get() = prefs.getBoolean(KEY_VIBRATE, true)
+        set(value) { prefs.edit().putBoolean(KEY_VIBRATE, value).apply() }
 }

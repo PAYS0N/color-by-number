@@ -4,6 +4,9 @@ import android.graphics.Bitmap as AndroidBitmap
 import android.graphics.Canvas as AndroidCanvas
 import android.graphics.Color as AndroidColor
 import android.graphics.Paint as AndroidPaint
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.*
 import androidx.compose.foundation.layout.*
@@ -22,6 +25,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.*
 import androidx.compose.ui.input.pointer.*
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontWeight
@@ -49,6 +53,10 @@ fun PuzzleScreen(
     var showSettings by remember { mutableStateOf(false) }
     var preventErrors by remember { mutableStateOf(AppSettings.preventErrors) }
     var preventOverwrite by remember { mutableStateOf(AppSettings.preventOverwrite) }
+    var vibrateEnabled by remember { mutableStateOf(AppSettings.vibrate) }
+
+    val context = LocalContext.current
+    val vibrator = remember { context.getSystemService(Vibrator::class.java) }
 
     // Track completed colors for palette visibility
     var completedColors by remember { mutableStateOf(puzzleState.completedColors()) }
@@ -125,6 +133,19 @@ fun PuzzleScreen(
                                 onCheckedChange = { preventOverwrite = it }
                             )
                         }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Vibration", modifier = Modifier.weight(1f))
+                            Switch(
+                                checked = vibrateEnabled,
+                                onCheckedChange = {
+                                    vibrateEnabled = it
+                                    AppSettings.vibrate = it
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -146,7 +167,16 @@ fun PuzzleScreen(
                             puzzleState.eraseCell(row, col)
                         } else {
                             selectedColorIndex?.let { ci ->
-                                puzzleState.colorCell(row, col, ci)
+                                val prevCompletedCount = completedColors.size
+                                val changed = puzzleState.colorCell(row, col, ci)
+                                if (changed && puzzleState.isCellCorrect(row, col) && vibrateEnabled) {
+                                    val newCompleted = puzzleState.completedColors()
+                                    if (newCompleted.size > prevCompletedCount) {
+                                        vibrateHaptic(vibrator, large = true)
+                                    } else {
+                                        vibrateHaptic(vibrator, large = false)
+                                    }
+                                }
                             }
                         }
                         completedColors = puzzleState.completedColors()
@@ -643,6 +673,16 @@ private fun screenToCell(
     val col = ((pos.x - gridOriginX) / cellSize).toInt()
     val row = ((pos.y - gridOriginY) / cellSize).toInt()
     return row to col
+}
+
+private fun vibrateHaptic(vibrator: Vibrator?, large: Boolean) {
+    vibrator ?: return
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        vibrator.vibrate(VibrationEffect.createOneShot(if (large) 60L else 30L, if (large) 255 else 60))
+    } else {
+        @Suppress("DEPRECATION")
+        vibrator.vibrate(if (large) 120L else 30L)
+    }
 }
 
 private fun isColorLight(rgb: Int): Boolean {
