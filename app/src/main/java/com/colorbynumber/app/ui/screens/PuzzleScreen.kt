@@ -570,9 +570,9 @@ private fun PuzzleGrid(
         if (showNumbers && navigatorEnabled && selectedColorIndex != null) {
             val selColor = selectedColorIndex
             val firstVisCol = max(0, ((-gridOriginX) / cellSize).toInt())
-            val lastVisCol  = min(gridSize - 1, ((size.width - gridOriginX) / cellSize).toInt() + 1)
+            val lastVisCol  = min(gridSize - 1, ((size.width - gridOriginX) / cellSize).toInt())
             val firstVisRow = max(0, ((-gridOriginY) / cellSize).toInt())
-            val lastVisRow  = min(gridSize - 1, ((size.height - gridOriginY) / cellSize).toInt() + 1)
+            val lastVisRow  = min(gridSize - 1, ((size.height - gridOriginY) / cellSize).toInt())
 
             val hasVisible = (firstVisRow..lastVisRow).any { row ->
                 (firstVisCol..lastVisCol).any { col ->
