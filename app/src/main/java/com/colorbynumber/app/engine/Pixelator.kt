@@ -61,7 +61,8 @@ object Pixelator {
             val b = Color.blue(pixels[i])
             // Standard luminance formula
             val grey = (0.299 * r + 0.587 * g + 0.114 * b).toInt().coerceIn(0, 255)
-            pixels[i] = Color.rgb(grey, grey, grey)
+            val lightened = (grey * 0.6 + 255 * 0.4).toInt().coerceIn(0, 255)
+            pixels[i] = Color.rgb(lightened, lightened, lightened)
         }
 
         val result = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)

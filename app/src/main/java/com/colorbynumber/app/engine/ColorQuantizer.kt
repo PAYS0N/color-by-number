@@ -54,39 +54,15 @@ object ColorQuantizer {
         // Step 4: Assign each pixel to the nearest palette color
         val colorIndices = assignPixels(pixels, palette)
 
-        // Step 5: Merge small clusters — any color covering fewer than minClusterCells
-        //         gets reassigned to its nearest neighbour and removed from the palette.
-        val minClusterCells = gridSize // e.g. 20 cells on a 20×20 grid
-        palette = mergeSmallClusters(colorIndices, palette, minClusterCells)
-
-        // Step 6: Re-assign after small-cluster merges
-        val finalColorIndices = assignPixels(pixels, palette)
-
-        // Step 7: Determine palette order by first appearance
-        val paletteOrder = computePaletteOrder(finalColorIndices, palette.size, gridSize)
+        // Step 5: Determine palette order by first appearance
+        val paletteOrder = computePaletteOrder(colorIndices, palette.size, gridSize)
 
         return QuantizationResult(
-            colorIndices = finalColorIndices,
+            colorIndices = colorIndices,
             palette = palette,
             paletteOrder = paletteOrder,
             gridSize = gridSize
         )
-    }
-
-    /**
-     * Remove palette entries whose assigned cell count is below [minCells].
-     * Pixels that were assigned to removed entries will be re-assigned to their
-     * nearest remaining colour by the [assignPixels] call in the caller.
-     * Always retains at least 1 colour.
-     */
-    private fun mergeSmallClusters(colorIndices: IntArray, palette: List<Int>, minCells: Int): List<Int> {
-        val counts = IntArray(palette.size)
-        for (idx in colorIndices) counts[idx]++
-        val filtered = palette.filterIndexed { i, _ -> counts[i] >= minCells }
-        // Guard: never return an empty palette
-        return filtered.ifEmpty {
-            listOf(palette[counts.indices.maxByOrNull { counts[it] } ?: 0])
-        }
     }
 
     /**

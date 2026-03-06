@@ -147,6 +147,18 @@ fun PuzzleScreen(
                                 }
                             )
                         }
+                        if (false) Button(
+                            onClick = {
+                                puzzleState.targetColors.copyInto(puzzleState.userColors)
+                                completedColors = puzzleState.completedColors()
+                                updateTrigger++
+                                showSettings = false
+                                if (puzzleState.isComplete()) onComplete()
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Auto-complete (Debug)")
+                        }
                     }
                 }
             }
