@@ -18,6 +18,13 @@
 
 **PixelArtScreen**: Blank canvas sized by user choice (8–100). Cells are colorable via palette or custom color picker. Eraser. Save icon button in top bar saves without leaving. On back with unsaved changes, prompts Save / Discard / Cancel. Artwork is persisted to `saved_pixel_arts` via PixelArtRepository. Resumed from HistoryScreen by loading cell colors into a fresh PixelArtState. Grid always renders per-cell with visible gridlines at all zoom levels (Stroke(width = 1.5f); no bitmap overview mode).
 
+**PuzzleScreen and PixelArtScreen gesture flows** (both screens share identical logic, duplicated):
+- `touch down → (<150ms) → lift` — tap: colors tapped cell immediately (UNDECIDED path)
+- `touch down → (<150ms) → swipe past touchSlop` — pan: moves the grid (PANNING path)
+- `touch down → (150ms timeout) → enter painting mode → (50ms timeout, no move)` — colors the held cell, continues in painting mode
+- `touch down → (150ms timeout) → enter painting mode → (<50ms) → lift` — colors the initial cell and exits
+- `touch down → (150ms timeout) → enter painting mode → (<50ms) → swipe to new cell` — colors the initial cell, then colors the destination cell, continues in painting mode
+
 **ColorPickerSheet**: Modal bottom sheet (Material 3 BottomSheet). HSV picker with saturation/value pad (2D) and hue slider. Selected color previewed. Confirm/dismiss.
 
 ---

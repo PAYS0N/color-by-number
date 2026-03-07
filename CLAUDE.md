@@ -15,7 +15,7 @@
 
 - Read project_management/manifest.md for a list of all files and purposes.
 
-- When asked to create or edit a context document, read project_management/cdoc.md.
+- Remember: When asked to create or edit a context document, read project_management/cdoc.md.
 
 - When asked to create project management files, create them in the project_management directory in root.
 

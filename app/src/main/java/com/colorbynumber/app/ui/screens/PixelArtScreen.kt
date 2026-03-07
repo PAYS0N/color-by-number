@@ -238,6 +238,11 @@ private fun PixelArtGrid(
                                 val (r, c) = pixelArtScreenToCell(change.position, size.width.toFloat(), size.height.toFloat(), gridSize, scale, offset)
                                 if ((r to c) != initialCell) {
                                     movedDuringSettle = true
+                                    val (ir, ic) = initialCell
+                                    if (ir in 0 until gridSize && ic in 0 until gridSize) {
+                                        currentOnCellTap(ir, ic)
+                                        lastCell = initialCell
+                                    }
                                     if (r in 0 until gridSize && c in 0 until gridSize) {
                                         currentOnCellTap(r, c)
                                         lastCell = r to c
@@ -246,7 +251,13 @@ private fun PixelArtGrid(
                                 }
                             }
                         }
-                        if (liftedDuringSettle) return@awaitEachGesture
+                        if (liftedDuringSettle) {
+                            val (r, c) = initialCell
+                            if (r in 0 until gridSize && c in 0 until gridSize) {
+                                currentOnCellTap(r, c)
+                            }
+                            return@awaitEachGesture
+                        }
 
                         if (!movedDuringSettle) {
                             val (r, c) = initialCell

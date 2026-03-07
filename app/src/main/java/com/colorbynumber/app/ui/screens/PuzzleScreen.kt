@@ -344,6 +344,11 @@ private fun PuzzleGrid(
                                 val (r, c) = screenToCell(change.position, size.width.toFloat(), size.height.toFloat(), gridSize, scale, offset)
                                 if ((r to c) != initialCell) {
                                     movedDuringSettle = true
+                                    val (ir, ic) = initialCell
+                                    if (ir in 0 until gridSize && ic in 0 until gridSize) {
+                                        currentOnCellTap(ir, ic)
+                                        lastCell = initialCell
+                                    }
                                     if (r in 0 until gridSize && c in 0 until gridSize) {
                                         currentOnCellTap(r, c)
                                         lastCell = r to c
@@ -352,7 +357,13 @@ private fun PuzzleGrid(
                                 }
                             }
                         }
-                        if (liftedDuringSettle) return@awaitEachGesture
+                        if (liftedDuringSettle) {
+                            val (r, c) = initialCell
+                            if (r in 0 until gridSize && c in 0 until gridSize) {
+                                currentOnCellTap(r, c)
+                            }
+                            return@awaitEachGesture
+                        }
 
                         // 50ms elapsed without moving — paint the initial held cell
                         if (!movedDuringSettle) {
