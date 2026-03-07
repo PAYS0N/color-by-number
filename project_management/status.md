@@ -20,20 +20,21 @@
 - Add name input when downloading pixel art as JSON
 - Add ability to download pixel art as an image (PNG)
 - Coloring white in pixel art should be visually distinct (white cell = canvas background, so painting white is invisible)
-- evaluate this management system with opus
 - create a testing plan
 - create a difficulty sorting system for public gallery
 - create a plan for a real public gallery (not hosted from github pages, use actual db)
+- Add a paragraph of context to CLAUDE.md (maybe moved from status)
+- consider doing the replay without greyscale 
+- make pixel art grid auto size, starting at 20x20, growing when adjacent 20x20 cells are used, no more grid size selection at start
+- Reduce gridSize to fit the sparse json on download (might already happen)
+
 
 ### Not Done (Needed for Release)
 - Add puzzles to public gallery
 - Make public gallery previews greyscale
 - Update README
+- Reduce the amount of non-puzzle details on public gallery cards
+- Swiping away or lifting while in the first 50ms of painting mode should color the starting cell.
+- Add downloadable image gif
+- Vertically align or fully separate the trash icon and the color selections
 
-## Project Summary
-
-**Color by Number** is an Android app (Kotlin + Jetpack Compose) that converts photos into interactive color-by-number puzzles. Users photograph or select an image, configure grid size and color detail, then fill in numbered grid cells to reveal the image. The app also includes a free-draw Pixel Art mode, a public puzzle gallery, puzzle replay, and history.
-
-**Tech Stack**: Kotlin, Jetpack Compose (Material 3), Room/SQLite, CameraX, Navigation Compose
-**Min SDK**: 26 | **Target SDK**: 34
-**Written entirely using Claude Code.**

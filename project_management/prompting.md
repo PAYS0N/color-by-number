@@ -1,6 +1,6 @@
 Compose a prompt for a new session task to do the indicated work item. 
 Include all the context someone would need, both practically and project-management wise. 
-The prompt should include an instruction to read project_context/instructions.md and project_context/manifest.md. 
+The prompt should likely include an instruction to read project_management/manifest.md. 
 The prompt should indicate the following two workflow items in addition to the task definition: 
 
 - Start by moving it to Active.
@@ -9,15 +9,16 @@ The prompt should indicate the following two workflow items in addition to the t
 
     1. **status.md** — remove the item from Open/Active; add any newly discovered open items.
     2. **manifest.md** — add a row for every new file created; remove rows for deleted files.
-    3. **context.md** — Read cdoc.md. update only the sections affected by the change, using the table below. Do not rewrite unaffected sections.
+    3. **context docs** — Read cdoc.md. Update only the context file affected by the change, using the table below. Do not rewrite unaffected files.
 
-    | Change type | Sections to update in context.md |
+    | Change type | File to update |
     |---|---|
-    | New or changed UI feature / screen | UI Screens, Open Work |
-    | New or changed data field or entity | Data Model |
-    | New or changed pipeline step | Puzzle generation pipeline |
-    | New or changed setting | Settings |
-    | New or changed architecture / data flow | Architecture |
+    | New or changed UI feature / screen | ui.md |
+    | New or changed data field or entity | data.md |
+    | New or changed pipeline step | pipeline.md |
+    | New or changed setting | settings.md |
+    | New or changed architecture / data flow | architecture.md |
+    | App purpose or tech stack change | app.md |
     | New file only (no behavior change) | manifest.md only |
     4. **Response to user** - remind the user to make a git commit and update the github project.
 

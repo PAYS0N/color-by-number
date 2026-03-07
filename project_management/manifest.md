@@ -21,12 +21,17 @@ Color by Number is an Android app (Kotlin, Jetpack Compose, Material 3) that con
 
 | File | Description |
 |------|-------------|
-| [project_context/instructions.md](instructions.md) | Project rules and guidelines for Claude and file management |
-| [project_context/status.md](status.md) | Active work, open items, and closed items tracking |
-| [project_context/manifest.md](manifest.md) | This file — full project file listing with descriptions |
-| [project_context/context.md](context.md) | Comprehensive project reference: architecture, data model, pipelines, UI, and open work |
-| [project_context/cdoc.md](cdoc.md) | Template instructions for generating context documents |
-| [project_context/prompting.md](prompting.md) | Template instructions for generating task prompts |
+| [CLAUDE.md](../CLAUDE.md) | Project rules and guidelines for Claude and file management |
+| [project_management/status.md](status.md) | Active work, open items, and closed items tracking |
+| [project_management/manifest.md](manifest.md) | This file — full project file listing with descriptions |
+| [project_management/cdocs/app.md](cdocs/app.md) | App purpose, user flow, navigation, and tech stack |
+| [project_management/cdocs/architecture.md](cdocs/architecture.md) | Architecture pattern, data flow, and database overview |
+| [project_management/cdocs/pipeline.md](cdocs/pipeline.md) | Puzzle generation pipeline and replay system |
+| [project_management/cdocs/data.md](cdocs/data.md) | Data model entities, persistence/event recording, and public gallery |
+| [project_management/cdocs/settings.md](cdocs/settings.md) | Global and per-puzzle settings |
+| [project_management/cdocs/ui.md](cdocs/ui.md) | UI screen descriptions and critical file paths |
+| [project_management/cdoc.md](cdoc.md) | Template instructions for generating context documents |
+| [project_management/prompting.md](prompting.md) | Template instructions for generating task prompts |
 
 ---
 
