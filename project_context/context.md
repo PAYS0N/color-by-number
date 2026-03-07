@@ -181,7 +181,7 @@ Color by Number is an Android app that converts photos into interactive color-by
 
 **GalleryScreen**: Fetches public gallery via GalleryRepository.fetchPuzzles() on load. Displays puzzles as grid. User selects one, converted to PuzzleState via toPuzzleState(), and gameplay starts with puzzleOrigin = Screen.GALLERY (so back returns here). Network errors gracefully degrade to empty list.
 
-**PixelArtScreen**: Blank canvas sized by user choice (8–100). Cells are colorable via palette or custom color picker. Eraser. Save icon button in top bar saves without leaving. On back with unsaved changes, prompts Save / Discard / Cancel. Artwork is persisted to `saved_pixel_arts` via PixelArtRepository. Resumed from HistoryScreen by loading cell colors into a fresh PixelArtState.
+**PixelArtScreen**: Blank canvas sized by user choice (8–100). Cells are colorable via palette or custom color picker. Eraser. Save icon button in top bar saves without leaving. On back with unsaved changes, prompts Save / Discard / Cancel. Artwork is persisted to `saved_pixel_arts` via PixelArtRepository. Resumed from HistoryScreen by loading cell colors into a fresh PixelArtState. Grid always renders per-cell with visible gridlines at all zoom levels (no bitmap overview mode).
 
 **ColorPickerSheet**: Modal bottom sheet (Material 3 BottomSheet). HSV picker with saturation/value pad (2D) and hue slider. Selected color previewed. Confirm/dismiss.
 

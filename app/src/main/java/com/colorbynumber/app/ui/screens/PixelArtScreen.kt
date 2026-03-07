@@ -186,8 +186,6 @@ private fun PixelArtGrid(
     var offset by remember { mutableStateOf(Offset.Zero) }
     var paintIndicatorPos by remember { mutableStateOf<Offset?>(null) }
 
-    val bitmapCache = remember { mutableStateOf<Pair<Int, ImageBitmap>?>(null) }
-
     val currentOnCellTap by rememberUpdatedState(onCellTap)
 
     Canvas(
@@ -331,91 +329,54 @@ private fun PixelArtGrid(
         val gridOriginX = (size.width - gridPixelSize) / 2f + offset.x
         val gridOriginY = (size.height - gridPixelSize) / 2f + offset.y
 
-        // Threshold for switching from bitmap to per-cell rendering
-        val t = ((gridSize - 20f) / 80f).coerceIn(0f, 1f)
-        val detailThreshold = 1.2f + t * 1.3f
-        val showDetail = scale > detailThreshold
+        val firstVisCol = max(0, ((-gridOriginX) / cellSize).toInt())
+        val lastVisCol = min(gridSize - 1, ((size.width - gridOriginX) / cellSize).toInt() + 1)
+        val firstVisRow = max(0, ((-gridOriginY) / cellSize).toInt())
+        val lastVisRow = min(gridSize - 1, ((size.height - gridOriginY) / cellSize).toInt() + 1)
 
-        if (!showDetail) {
-            // Zoomed-out: single bitmap
-            val cached = bitmapCache.value
-            val bmp: ImageBitmap = if (cached != null && cached.first == updateTrigger) {
-                cached.second
-            } else {
-                val newBmp = ImageBitmap(gridSize, gridSize)
-                val bmpCanvas = androidx.compose.ui.graphics.Canvas(newBmp)
-                val paint = androidx.compose.ui.graphics.Paint()
-                for (row in 0 until gridSize) {
-                    for (col in 0 until gridSize) {
-                        val idx = row * gridSize + col
-                        val argb = state.cells[idx]
-                        paint.color = if (argb != 0) Color(argb) else Color.White
-                        bmpCanvas.drawRect(
-                            androidx.compose.ui.geometry.Rect(col.toFloat(), row.toFloat(), col + 1f, row + 1f),
-                            paint
-                        )
-                    }
-                }
-                bitmapCache.value = updateTrigger to newBmp
-                newBmp
+        // Cell backgrounds
+        for (row in firstVisRow..lastVisRow) {
+            for (col in firstVisCol..lastVisCol) {
+                val idx = row * gridSize + col
+                val argb = state.cells[idx]
+                val x = kotlin.math.floor(gridOriginX + col * cellSize)
+                val y = kotlin.math.floor(gridOriginY + row * cellSize)
+                val w = kotlin.math.floor(gridOriginX + (col + 1) * cellSize) - x
+                val h = kotlin.math.floor(gridOriginY + (row + 1) * cellSize) - y
+
+                drawRect(
+                    color = if (argb != 0) Color(argb) else Color.White,
+                    topLeft = Offset(x, y),
+                    size = androidx.compose.ui.geometry.Size(w, h)
+                )
             }
-            drawImage(
-                image = bmp,
-                dstOffset = androidx.compose.ui.unit.IntOffset(gridOriginX.toInt(), gridOriginY.toInt()),
-                dstSize = androidx.compose.ui.unit.IntSize(gridPixelSize.toInt(), gridPixelSize.toInt()),
-                filterQuality = FilterQuality.None
-            )
-        } else {
-            // Zoomed-in: per-cell rendering
-            val firstVisCol = max(0, ((-gridOriginX) / cellSize).toInt())
-            val lastVisCol = min(gridSize - 1, ((size.width - gridOriginX) / cellSize).toInt() + 1)
-            val firstVisRow = max(0, ((-gridOriginY) / cellSize).toInt())
-            val lastVisRow = min(gridSize - 1, ((size.height - gridOriginY) / cellSize).toInt() + 1)
+        }
 
-            // Cell backgrounds
-            for (row in firstVisRow..lastVisRow) {
-                for (col in firstVisCol..lastVisCol) {
-                    val idx = row * gridSize + col
-                    val argb = state.cells[idx]
+        // Grid lines
+        val gridPath = Path()
+        for (row in firstVisRow..lastVisRow + 1) {
+            val ly = kotlin.math.floor(gridOriginY + row * cellSize)
+            gridPath.moveTo(kotlin.math.floor(gridOriginX + firstVisCol * cellSize), ly)
+            gridPath.lineTo(kotlin.math.floor(gridOriginX + (lastVisCol + 1) * cellSize), ly)
+        }
+        for (col in firstVisCol..lastVisCol + 1) {
+            val lx = kotlin.math.floor(gridOriginX + col * cellSize)
+            gridPath.moveTo(lx, kotlin.math.floor(gridOriginY + firstVisRow * cellSize))
+            gridPath.lineTo(lx, kotlin.math.floor(gridOriginY + (lastVisRow + 1) * cellSize))
+        }
+        drawPath(gridPath, color = Color(0x40000000), style = Stroke(width = 1f))
+
+        // Re-draw filled cells to cover grid lines
+        for (row in firstVisRow..lastVisRow) {
+            for (col in firstVisCol..lastVisCol) {
+                val idx = row * gridSize + col
+                val argb = state.cells[idx]
+                if (argb != 0) {
                     val x = kotlin.math.floor(gridOriginX + col * cellSize)
                     val y = kotlin.math.floor(gridOriginY + row * cellSize)
                     val w = kotlin.math.floor(gridOriginX + (col + 1) * cellSize) - x
                     val h = kotlin.math.floor(gridOriginY + (row + 1) * cellSize) - y
-
-                    drawRect(
-                        color = if (argb != 0) Color(argb) else Color.White,
-                        topLeft = Offset(x, y),
-                        size = androidx.compose.ui.geometry.Size(w, h)
-                    )
-                }
-            }
-
-            // Grid lines
-            val gridPath = Path()
-            for (row in firstVisRow..lastVisRow + 1) {
-                val ly = kotlin.math.floor(gridOriginY + row * cellSize)
-                gridPath.moveTo(kotlin.math.floor(gridOriginX + firstVisCol * cellSize), ly)
-                gridPath.lineTo(kotlin.math.floor(gridOriginX + (lastVisCol + 1) * cellSize), ly)
-            }
-            for (col in firstVisCol..lastVisCol + 1) {
-                val lx = kotlin.math.floor(gridOriginX + col * cellSize)
-                gridPath.moveTo(lx, kotlin.math.floor(gridOriginY + firstVisRow * cellSize))
-                gridPath.lineTo(lx, kotlin.math.floor(gridOriginY + (lastVisRow + 1) * cellSize))
-            }
-            drawPath(gridPath, color = Color(0x40000000), style = Stroke(width = 1f))
-
-            // Re-draw filled cells to cover grid lines
-            for (row in firstVisRow..lastVisRow) {
-                for (col in firstVisCol..lastVisCol) {
-                    val idx = row * gridSize + col
-                    val argb = state.cells[idx]
-                    if (argb != 0) {
-                        val x = kotlin.math.floor(gridOriginX + col * cellSize)
-                        val y = kotlin.math.floor(gridOriginY + row * cellSize)
-                        val w = kotlin.math.floor(gridOriginX + (col + 1) * cellSize) - x
-                        val h = kotlin.math.floor(gridOriginY + (row + 1) * cellSize) - y
-                        drawRect(Color(argb), topLeft = Offset(x, y), size = androidx.compose.ui.geometry.Size(w, h))
-                    }
+                    drawRect(Color(argb), topLeft = Offset(x, y), size = androidx.compose.ui.geometry.Size(w, h))
                 }
             }
         }

@@ -124,4 +124,5 @@ Color by Number is an Android app (Kotlin, Jetpack Compose, Material 3) that con
 | File | Description |
 |------|-------------|
 | [data/puzzle1.json](../data/puzzle1.json) | "Pine Tree" sample puzzle: 20x20 grid, 5-color palette, target color indices |
-| [data/puzzle2.json](../data/puzzle2.json) | Second sample puzzle in dense JSON format |
+| [data/puzzle2.json](../data/puzzle2.json) | Second sample puzzle in dense JSON format, a pizza slice. |
+| [data/puzzle3.json](../data/puzzle3.json) | Third sample puzzle in dense JSON format, a strawberry. |
