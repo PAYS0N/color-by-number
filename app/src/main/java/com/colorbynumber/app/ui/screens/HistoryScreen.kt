@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -614,7 +615,16 @@ private fun InProgressPuzzleDialog(
         AlertDialog(
             onDismissRequest = onDismiss,
             title = {
-                Text("${puzzle.gridSize}×${puzzle.gridSize} Puzzle")
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("${puzzle.gridSize}×${puzzle.gridSize} Puzzle")
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Default.Close, contentDescription = "Close")
+                    }
+                }
             },
             text = {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -697,7 +707,16 @@ private fun PixelArtDialog(
         AlertDialog(
             onDismissRequest = onDismiss,
             title = {
-                Text("${art.gridSize}×${art.gridSize} Pixel Art")
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("${art.gridSize}×${art.gridSize} Pixel Art")
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Default.Close, contentDescription = "Close")
+                    }
+                }
             },
             text = {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -735,7 +754,7 @@ private fun PixelArtDialog(
                             }
                         }) {
                             Icon(
-                                Icons.Default.Download,
+                                Icons.Default.Code,
                                 contentDescription = "Export JSON"
                             )
                         }

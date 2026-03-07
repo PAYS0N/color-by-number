@@ -19,7 +19,6 @@ The prompt should indicate the following two workflow items in addition to the t
     | New or changed setting | Settings |
     | New or changed architecture / data flow | Architecture |
     | New file only (no behavior change) | manifest.md only |
-    | Open item closed | Open Work |
     4. **Response to user** - remind the user to make a git commit and update the github project.
 
 Indicate the Claude model best suited for the task, not as part of the prompt. 

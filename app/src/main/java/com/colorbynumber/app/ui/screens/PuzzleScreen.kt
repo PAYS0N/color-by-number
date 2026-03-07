@@ -580,7 +580,7 @@ private fun PuzzleGrid(
                 gridPath.moveTo(lx, kotlin.math.floor(gridOriginY + firstVisRow * cellSize))
                 gridPath.lineTo(lx, kotlin.math.floor(gridOriginY + (lastVisRow + 1) * cellSize))
             }
-            drawPath(gridPath, color = Color(0x40000000), style = Stroke(width = 1f))
+            drawPath(gridPath, color = Color(0x40000000), style = Stroke(width = 1.5f))
 
             // Pass C: re-draw correct cells to cover their grid lines
             for (row in firstVisRow..lastVisRow) {
