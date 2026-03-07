@@ -16,12 +16,13 @@
 - Add global 'disable nav' setting
 - Add visual indicator when a color is fully complete
 - Add color autocomplete feature
+- Remove greyscale preview from pixel art creation (canvas size dialog)
+- Make grid lines thicker in all play screens (PuzzleScreen, PixelArtScreen)
 
 ### Not Done (Needed for Release)
 - Add puzzles to public gallery
 - Rework home page
 - Update README
-- Make pixel art saveable
 - Make completed puzzles exportable
 
 ## Closed Items
@@ -46,6 +47,7 @@
 - Add camera screen for photo capture
 - Add color quantizer (k-means clustering for palette reduction)
 - Add save/load puzzle progress (IN_PROGRESS/COMPLETED states)
+- Make pixel art saveable
 
 ---
 

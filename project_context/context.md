@@ -38,7 +38,7 @@ Color by Number is an Android app that converts photos into interactive color-by
 6. PuzzleRepository: buffers events in memory, flushes on threshold or explicit call, snapshots user colors on pause
 7. Room/SQLite: persists SavedPuzzle entity and PlacementEvent rows
 
-**Database**: Single AppDatabase with SavedPuzzleDao and PlacementEventDao. Entities auto-convert between IntArray/ByteArray via Room type converters. Foreign key cascade on puzzle delete.
+**Database**: Single AppDatabase (version 3) with SavedPuzzleDao, PlacementEventDao, and SavedPixelArtDao. Entities auto-convert between IntArray/ByteArray via Room type converters. Foreign key cascade on puzzle delete. PixelArtRepository handles pixel art CRUD independently of PuzzleRepository.
 
 ---
 
@@ -103,6 +103,13 @@ Color by Number is an Android app that converts photos into interactive color-by
 - `gridSize`, `palette`, `targetColors`: copied from SavedPuzzle
 - `correctEvents`: List<PlacementEvent> filtered to only correct placements (using target colors)
 - Static method `filterCorrectEvents()` cross-checks event cell coords against targetColors to drop erases and incorrect placements
+
+**SavedPixelArt** (Room entity, `saved_pixel_arts` table):
+- `id`: auto-generated primary key (Long)
+- `gridSize`: canvas width/height (Int)
+- `cellColors`: ByteArray-encoded IntArray of ARGB values, row-major; 0 = empty (renders as white)
+- `createdAt`, `updatedAt`: timestamps (milliseconds)
+- Custom equals/hashCode by id only
 
 ---
 
@@ -170,11 +177,11 @@ Color by Number is an Android app that converts photos into interactive color-by
 
 **CompletionScreen**: Celebration screen showing final image (grid colored by targetColors). Play Replay button to view replay animation. Clicking either closes to transition to History screen with auto-open-first flag set.
 
-**HistoryScreen**: Grid of all saved puzzles (newest first), each showing thumbnail preview. Delete action per puzzle (with optional confirmation). Long-press or dedicated button plays replay. Replay player animates cells being filled in sequence (via PuzzleReplayPlayer). Back button returns to Home.
+**HistoryScreen**: Combined grid of saved puzzles and pixel art (newest first), each showing thumbnail preview. Puzzle cards show a completion badge or progress percentage. Pixel art cards show a brush badge. Tapping a puzzle opens InProgressPuzzleDialog (Resume/Delete) or CompletedPuzzleDialog (replay/download/delete). Tapping pixel art opens PixelArtDialog (Resume/Delete with confirmation). Both dialogs match Material 3 style.
 
 **GalleryScreen**: Fetches public gallery via GalleryRepository.fetchPuzzles() on load. Displays puzzles as grid. User selects one, converted to PuzzleState via toPuzzleState(), and gameplay starts with puzzleOrigin = Screen.GALLERY (so back returns here). Network errors gracefully degrade to empty list.
 
-**PixelArtScreen**: Blank canvas sized by user choice (8–100). Cells are colorable via palette or custom color picker. Eraser. No save/load yet (noted as open item). Back returns to Home.
+**PixelArtScreen**: Blank canvas sized by user choice (8–100). Cells are colorable via palette or custom color picker. Eraser. Save icon button in top bar saves without leaving. On back with unsaved changes, prompts Save / Discard / Cancel. Artwork is persisted to `saved_pixel_arts` via PixelArtRepository. Resumed from HistoryScreen by loading cell colors into a fresh PixelArtState.
 
 **ColorPickerSheet**: Modal bottom sheet (Material 3 BottomSheet). HSV picker with saturation/value pad (2D) and hue slider. Selected color previewed. Confirm/dismiss.
 
@@ -188,7 +195,7 @@ Color by Number is an Android app that converts photos into interactive color-by
 
 **Processing**: [Pixelator.kt](../app/src/main/java/com/colorbynumber/app/engine/Pixelator.kt), [ColorQuantizer.kt](../app/src/main/java/com/colorbynumber/app/engine/ColorQuantizer.kt)
 
-**Persistence**: [PuzzleRepository.kt](../app/src/main/java/com/colorbynumber/app/data/PuzzleRepository.kt), [SavedPuzzle.kt](../app/src/main/java/com/colorbynumber/app/data/SavedPuzzle.kt), [AppDatabase.kt](../app/src/main/java/com/colorbynumber/app/data/AppDatabase.kt)
+**Persistence**: [PuzzleRepository.kt](../app/src/main/java/com/colorbynumber/app/data/PuzzleRepository.kt), [SavedPuzzle.kt](../app/src/main/java/com/colorbynumber/app/data/SavedPuzzle.kt), [AppDatabase.kt](../app/src/main/java/com/colorbynumber/app/data/AppDatabase.kt), [PixelArtRepository.kt](../app/src/main/java/com/colorbynumber/app/data/PixelArtRepository.kt), [SavedPixelArt.kt](../app/src/main/java/com/colorbynumber/app/data/SavedPixelArt.kt)
 
 **Gallery**: [GalleryRepository.kt](../app/src/main/java/com/colorbynumber/app/data/GalleryRepository.kt)
 

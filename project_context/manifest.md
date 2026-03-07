@@ -59,6 +59,9 @@ Color by Number is an Android app (Kotlin, Jetpack Compose, Material 3) that con
 | [PlacementEventDao.kt](../app/src/main/java/com/colorbynumber/app/data/PlacementEventDao.kt) | DAO for inserting and querying placement events by puzzle ID |
 | [PlacementEventType.kt](../app/src/main/java/com/colorbynumber/app/data/PlacementEventType.kt) | Enum distinguishing PLACE vs ERASE event types |
 | [PuzzleRepository.kt](../app/src/main/java/com/colorbynumber/app/data/PuzzleRepository.kt) | Orchestrates puzzle persistence, event buffering/flushing, and replay loading |
+| [SavedPixelArt.kt](../app/src/main/java/com/colorbynumber/app/data/SavedPixelArt.kt) | Entity for a saved pixel art creation: grid size and cell color array |
+| [SavedPixelArtDao.kt](../app/src/main/java/com/colorbynumber/app/data/SavedPixelArtDao.kt) | DAO for pixel art CRUD operations |
+| [PixelArtRepository.kt](../app/src/main/java/com/colorbynumber/app/data/PixelArtRepository.kt) | Orchestrates pixel art persistence: save, update, load, and delete |
 | [PuzzleReplayState.kt](../app/src/main/java/com/colorbynumber/app/data/PuzzleReplayState.kt) | State object for replay: grid, palette, and filtered correct placement events |
 | [PuzzleReplayPlayer.kt](../app/src/main/java/com/colorbynumber/app/data/PuzzleReplayPlayer.kt) | Animates puzzle replay by stepping through placement events |
 | [GalleryRepository.kt](../app/src/main/java/com/colorbynumber/app/data/GalleryRepository.kt) | Fetches and parses public gallery puzzles from GitHub (dense/sparse JSON formats) |
@@ -86,9 +89,9 @@ Color by Number is an Android app (Kotlin, Jetpack Compose, Material 3) that con
 | [ConfigScreen.kt](../app/src/main/java/com/colorbynumber/app/ui/screens/ConfigScreen.kt) | Puzzle configuration: grid size slider, detail level, and greyscale preview |
 | [PuzzleScreen.kt](../app/src/main/java/com/colorbynumber/app/ui/screens/PuzzleScreen.kt) | Main gameplay: grid rendering, color selection, palette bar, and settings |
 | [CompletionScreen.kt](../app/src/main/java/com/colorbynumber/app/ui/screens/CompletionScreen.kt) | Completion celebration screen with final image display and replay button |
-| [HistoryScreen.kt](../app/src/main/java/com/colorbynumber/app/ui/screens/HistoryScreen.kt) | Saved puzzles grid with delete/download actions and replay player |
+| [HistoryScreen.kt](../app/src/main/java/com/colorbynumber/app/ui/screens/HistoryScreen.kt) | Combined grid of saved puzzles and pixel art; delete/download/replay for puzzles; resume/delete dialog for pixel art |
 | [GalleryScreen.kt](../app/src/main/java/com/colorbynumber/app/ui/screens/GalleryScreen.kt) | Public gallery screen fetching and displaying remote puzzles |
-| [PixelArtScreen.kt](../app/src/main/java/com/colorbynumber/app/ui/screens/PixelArtScreen.kt) | Freeform pixel art canvas with color picker, eraser, and painting tools |
+| [PixelArtScreen.kt](../app/src/main/java/com/colorbynumber/app/ui/screens/PixelArtScreen.kt) | Freeform pixel art canvas with color picker, eraser, painting tools, save button, and save-on-back prompt |
 | [ColorPickerSheet.kt](../app/src/main/java/com/colorbynumber/app/ui/screens/ColorPickerSheet.kt) | Modal bottom sheet HSV color picker with saturation/value pad and hue slider |
 
 ---
