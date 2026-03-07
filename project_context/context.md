@@ -4,7 +4,7 @@
 
 Color by Number is an Android app that converts photos into interactive color-by-number puzzles. Users follow one of three paths: (1) capture or select a photo, configure grid size (8–100 pixels) and color detail level, then solve the puzzle by tapping cells and selecting colors; (2) browse and play pre-made puzzles from a public gallery (GitHub-hosted); (3) draw pixel art freeform on a blank canvas. Completed puzzles can be replayed, downloaded, or deleted. All image processing is local; the app is free and ad-free.
 
-**Navigation**: Home screen branches to Camera, Gallery picker, History, Public Gallery, or Pixel Art mode. Puzzle play can originate from any of these paths and returns to the originating screen on back. Config and Puzzle screens are transient; completion screen auto-transitions to History after replay is viewed.
+**Navigation**: Bottom tab navigation with three tabs: Create (camera, gallery pick, pixel art), Explore (public gallery), and My Work (history). Transient screens (Camera, Config, Puzzle, Complete, PixelArt) push onto the stack and hide the bottom bar. Puzzle back navigates to the originating tab; save-and-back flows (puzzle, pixel art) navigate to My Work. Completion screen auto-transitions to My Work after replay is viewed.
 
 ---
 
@@ -27,7 +27,7 @@ Color by Number is an Android app that converts photos into interactive color-by
 
 ## Architecture
 
-**Pattern**: MVVM-like with state-driven UI. MainActivity holds all screen navigation state and puzzle/event callback registration. PuzzleRepository orchestrates persistence and event buffering. No dependency injection framework; components are instantiated directly in onCreate.
+**Pattern**: MVVM-like with state-driven UI. MainActivity holds all screen navigation state and puzzle/event callback registration. Navigation uses a `Screen` enum with `currentScreen` mutableState, plus a `Tab` enum with `selectedTab` for bottom tab navigation (Create, Explore, My Work). A Material 3 `Scaffold` with `NavigationBar` provides the persistent bottom tabs; the bar is hidden on transient screens. PuzzleRepository orchestrates persistence and event buffering. No dependency injection framework; components are instantiated directly in onCreate.
 
 **Data Flow**:
 1. Photo capture or selection → Bitmap
@@ -167,7 +167,7 @@ Color by Number is an Android app that converts photos into interactive color-by
 
 ## UI Screens
 
-**HomeScreen**: Entry point with buttons for Camera, Gallery, My Puzzles (History), Public Gallery, and Pixel Art. No internal state except callbacks.
+**HomeScreen (Create tab)**: Card-based layout with three actions: Take Photo, Pick from Gallery, and Pixel Art. Each is an ElevatedCard with icon, title, and subtitle. No internal state except callbacks.
 
 **CameraScreen**: CameraX preview with pinch-to-zoom gesture. Capture button takes photo and returns Bitmap to MainActivity. Portrait-only or rotation-responsive depending on manifest config.
 
@@ -177,9 +177,9 @@ Color by Number is an Android app that converts photos into interactive color-by
 
 **CompletionScreen**: Celebration screen showing final image (grid colored by targetColors). Play Replay button to view replay animation. Clicking either closes to transition to History screen with auto-open-first flag set.
 
-**HistoryScreen**: Combined grid of saved puzzles and pixel art (newest first), each showing thumbnail preview. Puzzle cards show a completion badge or progress percentage. Pixel art cards show a brush badge. Tapping a puzzle opens InProgressPuzzleDialog (Resume/Delete) or CompletedPuzzleDialog (replay/download/delete). Tapping pixel art opens PixelArtDialog (Resume/Delete with confirmation, plus a Code icon button that exports sparse JSON to the Downloads folder). Both InProgressPuzzleDialog and PixelArtDialog have an X close button in the title row (Icons.Default.Close). Both dialogs match Material 3 style.
+**HistoryScreen (My Work tab)**: Combined grid of saved puzzles and pixel art (newest first), each showing thumbnail preview. Puzzle cards show a completion badge or progress percentage. Pixel art cards show a brush badge. Tapping a puzzle opens InProgressPuzzleDialog (Resume/Delete) or CompletedPuzzleDialog (replay/download/delete). Tapping pixel art opens PixelArtDialog (Resume/Delete with confirmation, plus a Code icon button that exports sparse JSON to the Downloads folder). Both InProgressPuzzleDialog and PixelArtDialog have an X close button in the title row (Icons.Default.Close). Both dialogs match Material 3 style. No back arrow; navigation via bottom tabs.
 
-**GalleryScreen**: Fetches public gallery via GalleryRepository.fetchPuzzles() on load. Displays puzzles as grid. User selects one, converted to PuzzleState via toPuzzleState(), and gameplay starts with puzzleOrigin = Screen.GALLERY (so back returns here). Network errors gracefully degrade to empty list.
+**GalleryScreen (Explore tab)**: Fetches public gallery via GalleryRepository.fetchPuzzles() on load. Displays puzzles as grid. User selects one, converted to PuzzleState via toPuzzleState(), and gameplay starts with puzzleOrigin = Screen.GALLERY (so back returns here). Network errors gracefully degrade to empty list. No back arrow; navigation via bottom tabs.
 
 **PixelArtScreen**: Blank canvas sized by user choice (8–100). Cells are colorable via palette or custom color picker. Eraser. Save icon button in top bar saves without leaving. On back with unsaved changes, prompts Save / Discard / Cancel. Artwork is persisted to `saved_pixel_arts` via PixelArtRepository. Resumed from HistoryScreen by loading cell colors into a fresh PixelArtState. Grid always renders per-cell with visible gridlines at all zoom levels (Stroke(width = 1.5f); no bitmap overview mode).
 

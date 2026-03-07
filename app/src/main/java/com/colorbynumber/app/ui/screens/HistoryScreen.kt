@@ -15,7 +15,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
@@ -69,7 +68,6 @@ fun HistoryScreen(
     pixelArtRepository: PixelArtRepository,
     onResumePuzzle: (Long) -> Unit,
     onResumePixelArt: (Long) -> Unit,
-    onBack: () -> Unit,
     autoOpenFirst: Boolean = false,
     onAutoOpenConsumed: () -> Unit = {}
 ) {
@@ -111,12 +109,7 @@ fun HistoryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("My Puzzles") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                }
+                title = { Text("My Work") }
             )
         }
     ) { padding ->

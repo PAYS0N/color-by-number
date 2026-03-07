@@ -19,43 +19,11 @@
 - Make grid size inputs typable (pixel art canvas size dialog, and other numeric inputs)
 - Add name input when downloading pixel art as JSON
 - Add ability to download pixel art as an image (PNG)
+- Coloring white in pixel art should be visually distinct (white cell = canvas background, so painting white is invisible)
 
 ### Not Done (Needed for Release)
 - Add puzzles to public gallery
-- Rework home page
 - Update README
-
-## Closed Items
-
-- Add project context document
-- Add project management files (status.md, manifest.md, instructions.md)
-- Make completed puzzles downloadable
-- Add ability to delete completed puzzles
-- Add free pixel art mode
-- Add delay to first painting mode cell
-- Change cell navigator default threshold
-- Config screen performance optimization
-- Add puzzle replay system
-- Add sparse puzzle support
-- Add prevent-errors mode
-- Add prevent-overwrite mode
-- Add color navigator arrow
-- Add pinch-to-zoom grid navigation
-- Add vibration feedback
-- Add public gallery screen
-- Add history screen with saved puzzles and replay
-- Add camera screen for photo capture
-- Add color quantizer (k-means clustering for palette reduction)
-- Add save/load puzzle progress (IN_PROGRESS/COMPLETED states)
-- Make pixel art saveable
-- Make pixel art exportable in sparse JSON format for download
-- Make completed puzzles exportable
-- Remove greyscale overview from pixel art creation screen
-- Make grid lines thicker in all play screens (Stroke 1f → 1.5f in PuzzleScreen and PixelArtScreen)
-- Add X/close button to InProgressPuzzleDialog and PixelArtDialog (title row with Close IconButton)
-- Clarify JSON download button (Icons.Default.Download → Icons.Default.Code in PixelArtDialog)
-
----
 
 ## Project Summary
 

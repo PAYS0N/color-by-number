@@ -43,7 +43,7 @@ Color by Number is an Android app (Kotlin, Jetpack Compose, Material 3) that con
 
 | File | Description |
 |------|-------------|
-| [MainActivity.kt](../app/src/main/java/com/colorbynumber/app/MainActivity.kt) | Main activity: screen navigation, photo capture, puzzle creation, database init |
+| [MainActivity.kt](../app/src/main/java/com/colorbynumber/app/MainActivity.kt) | Main activity: bottom tab navigation (Create/Explore/My Work), screen routing, photo capture, puzzle creation, database init |
 | [AppSettings.kt](../app/src/main/java/com/colorbynumber/app/AppSettings.kt) | Global SharedPreferences for preventErrors, preventOverwrite, and vibrate settings |
 
 ---
@@ -84,13 +84,13 @@ Color by Number is an Android app (Kotlin, Jetpack Compose, Material 3) that con
 
 | File | Description |
 |------|-------------|
-| [HomeScreen.kt](../app/src/main/java/com/colorbynumber/app/ui/screens/HomeScreen.kt) | Home screen with buttons for camera, gallery, history, public gallery, and pixel art |
+| [HomeScreen.kt](../app/src/main/java/com/colorbynumber/app/ui/screens/HomeScreen.kt) | Create tab: card layout with Take Photo, Pick from Gallery, and Pixel Art actions |
 | [CameraScreen.kt](../app/src/main/java/com/colorbynumber/app/ui/screens/CameraScreen.kt) | CameraX preview with pinch-to-zoom and photo capture |
 | [ConfigScreen.kt](../app/src/main/java/com/colorbynumber/app/ui/screens/ConfigScreen.kt) | Puzzle configuration: grid size slider, detail level, and greyscale preview |
 | [PuzzleScreen.kt](../app/src/main/java/com/colorbynumber/app/ui/screens/PuzzleScreen.kt) | Main gameplay: grid rendering, color selection, palette bar, and settings |
 | [CompletionScreen.kt](../app/src/main/java/com/colorbynumber/app/ui/screens/CompletionScreen.kt) | Completion celebration screen with final image display and replay button |
-| [HistoryScreen.kt](../app/src/main/java/com/colorbynumber/app/ui/screens/HistoryScreen.kt) | Combined grid of saved puzzles and pixel art; delete/download/replay for puzzles; resume/delete dialog for pixel art |
-| [GalleryScreen.kt](../app/src/main/java/com/colorbynumber/app/ui/screens/GalleryScreen.kt) | Public gallery screen fetching and displaying remote puzzles |
+| [HistoryScreen.kt](../app/src/main/java/com/colorbynumber/app/ui/screens/HistoryScreen.kt) | My Work tab: combined grid of saved puzzles and pixel art; delete/download/replay for puzzles; resume/delete dialog for pixel art |
+| [GalleryScreen.kt](../app/src/main/java/com/colorbynumber/app/ui/screens/GalleryScreen.kt) | Explore tab: public gallery screen fetching and displaying remote puzzles |
 | [PixelArtScreen.kt](../app/src/main/java/com/colorbynumber/app/ui/screens/PixelArtScreen.kt) | Freeform pixel art canvas with color picker, eraser, painting tools, save button, and save-on-back prompt |
 | [ColorPickerSheet.kt](../app/src/main/java/com/colorbynumber/app/ui/screens/ColorPickerSheet.kt) | Modal bottom sheet HSV color picker with saturation/value pad and hue slider |
 

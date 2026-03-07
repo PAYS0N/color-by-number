@@ -1,13 +1,13 @@
-Compose a prompt for a new session task to [work item]. 
-Include all the context someone would need. 
+Compose a prompt for a new session task to do the indicated work item. 
+Include all the context someone would need, both practically and project-management wise. 
 The prompt should include an instruction to read project_context/instructions.md and project_context/manifest.md. 
 The prompt should indicate the following two workflow items in addition to the task definition: 
 
 - Start by moving it to Active.
 
-- Run this checklist after the user has declared the task done:
+- Run this checklist after the user has declared the task done (make it clear to run this after completion is externally confirmed, not when it thinks it's done.):
 
-    1. **status.md** — move the item from Open/Active to Closed; clear Active Work; add any newly discovered open items.
+    1. **status.md** — remove the item from Open/Active; add any newly discovered open items.
     2. **manifest.md** — add a row for every new file created; remove rows for deleted files.
     3. **context.md** — Read cdoc.md. update only the sections affected by the change, using the table below. Do not rewrite unaffected sections.
 

@@ -8,8 +8,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,8 +25,7 @@ import com.colorbynumber.app.data.GalleryRepository
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GalleryScreen(
-    onSelectPuzzle: (GalleryPuzzle) -> Unit,
-    onBack: () -> Unit
+    onSelectPuzzle: (GalleryPuzzle) -> Unit
 ) {
     var puzzles by remember { mutableStateOf<List<GalleryPuzzle>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -48,12 +45,7 @@ fun GalleryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Public Gallery") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                }
+                title = { Text("Explore") }
             )
         }
     ) { padding ->
