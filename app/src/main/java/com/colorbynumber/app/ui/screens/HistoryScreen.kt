@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
@@ -34,8 +35,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.colorbynumber.app.data.PixelArtRepository
 import com.colorbynumber.app.data.PuzzleRepository
 import com.colorbynumber.app.data.PuzzleStatus
+import com.colorbynumber.app.data.SavedPixelArt
 import com.colorbynumber.app.data.SavedPuzzle
 import com.colorbynumber.app.engine.PuzzleReplayState
 import kotlinx.coroutines.Dispatchers
@@ -44,19 +47,34 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
 
+// Combined history item for unified grid display
+private sealed class HistoryItem {
+    data class Puzzle(val puzzle: SavedPuzzle) : HistoryItem()
+    data class Art(val art: SavedPixelArt) : HistoryItem()
+    val updatedAt: Long get() = when (this) {
+        is Puzzle -> puzzle.updatedAt
+        is Art -> art.updatedAt
+    }
+    val itemId: Long get() = when (this) {
+        is Puzzle -> puzzle.id
+        is Art -> art.id
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(
     repository: PuzzleRepository,
+    pixelArtRepository: PixelArtRepository,
     onResumePuzzle: (Long) -> Unit,
+    onResumePixelArt: (Long) -> Unit,
     onBack: () -> Unit,
     autoOpenFirst: Boolean = false,
     onAutoOpenConsumed: () -> Unit = {}
 ) {
     val coroutineScope = rememberCoroutineScope()
 
-    // HistoryScreen owns its own data — loads fresh from DB every time
-    var puzzles by remember { mutableStateOf<List<SavedPuzzle>>(emptyList()) }
+    var items by remember { mutableStateOf<List<HistoryItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
 
     // Reload trigger — increment to force a refresh
@@ -64,19 +82,24 @@ fun HistoryScreen(
 
     LaunchedEffect(reloadTrigger) {
         isLoading = true
-        val loaded = withContext(Dispatchers.IO) { repository.getAll() }
-        puzzles = loaded
+        val puzzles = withContext(Dispatchers.IO) { repository.getAll() }
+        val arts = withContext(Dispatchers.IO) { pixelArtRepository.getAll() }
+        items = (puzzles.map { HistoryItem.Puzzle(it) } + arts.map { HistoryItem.Art(it) })
+            .sortedByDescending { it.updatedAt }
         isLoading = false
     }
 
     // Dialog state
     var showCompletedDialog by remember { mutableStateOf<SavedPuzzle?>(null) }
     var showInProgressDialog by remember { mutableStateOf<SavedPuzzle?>(null) }
+    var showPixelArtDialog by remember { mutableStateOf<SavedPixelArt?>(null) }
 
     // Auto-open the most recent completed puzzle's replay (one-shot)
-    LaunchedEffect(puzzles) {
-        if (autoOpenFirst && puzzles.isNotEmpty()) {
-            puzzles.firstOrNull { it.status == PuzzleStatus.COMPLETED }
+    LaunchedEffect(items) {
+        if (autoOpenFirst && items.isNotEmpty()) {
+            items.filterIsInstance<HistoryItem.Puzzle>()
+                .map { it.puzzle }
+                .firstOrNull { it.status == PuzzleStatus.COMPLETED }
                 ?.let {
                     onAutoOpenConsumed()
                     showCompletedDialog = it
@@ -107,7 +130,7 @@ fun HistoryScreen(
                     CircularProgressIndicator()
                 }
             }
-            puzzles.isEmpty() -> {
+            items.isEmpty() -> {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -115,7 +138,7 @@ fun HistoryScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "No puzzles yet.\nTake a photo or pick from your gallery to get started!",
+                        text = "No puzzles or artwork yet.\nTake a photo or draw some pixel art to get started!",
                         textAlign = TextAlign.Center,
                         fontSize = 16.sp,
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
@@ -133,17 +156,23 @@ fun HistoryScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(puzzles, key = { it.id }) { puzzle ->
-                        PuzzleCard(
-                            puzzle = puzzle,
-                            onClick = {
-                                if (puzzle.status == PuzzleStatus.COMPLETED) {
-                                    showCompletedDialog = puzzle
-                                } else {
-                                    showInProgressDialog = puzzle
+                    items(items, key = { "${it::class.simpleName}_${it.itemId}" }) { item ->
+                        when (item) {
+                            is HistoryItem.Puzzle -> PuzzleCard(
+                                puzzle = item.puzzle,
+                                onClick = {
+                                    if (item.puzzle.status == PuzzleStatus.COMPLETED) {
+                                        showCompletedDialog = item.puzzle
+                                    } else {
+                                        showInProgressDialog = item.puzzle
+                                    }
                                 }
-                            }
-                        )
+                            )
+                            is HistoryItem.Art -> PixelArtCard(
+                                art = item.art,
+                                onClick = { showPixelArtDialog = item.art }
+                            )
+                        }
                     }
                 }
             }
@@ -184,6 +213,26 @@ fun HistoryScreen(
                 }
             },
             onDismiss = { showInProgressDialog = null }
+        )
+    }
+
+    // Pixel art dialog — resume or delete
+    showPixelArtDialog?.let { art ->
+        PixelArtDialog(
+            art = art,
+            onResume = {
+                showPixelArtDialog = null
+                onResumePixelArt(art.id)
+            },
+            onDelete = {
+                showPixelArtDialog = null
+                val id = art.id
+                coroutineScope.launch {
+                    withContext(Dispatchers.IO) { pixelArtRepository.delete(id) }
+                    reloadTrigger++
+                }
+            },
+            onDismiss = { showPixelArtDialog = null }
         )
     }
 }
@@ -270,6 +319,89 @@ private fun PuzzleCard(
                 ) {
                     Text(
                         text = "${puzzle.gridSize}×${puzzle.gridSize}",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = dateStr,
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PixelArtCard(
+    art: SavedPixelArt,
+    onClick: () -> Unit
+) {
+    val thumbnail = remember(art.id, art.updatedAt) {
+        buildPixelArtThumbnail(art)
+    }
+
+    val dateStr = remember(art.updatedAt) {
+        val sdf = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
+        sdf.format(Date(art.updatedAt))
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(0.85f)
+            .clickable { onClick() },
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Thumbnail image
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                ) {
+                    thumbnail?.let { bmp ->
+                        Image(
+                            bitmap = bmp.asImageBitmap(),
+                            contentDescription = "Pixel art thumbnail",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+
+                    // Pixel art badge
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(6.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.primary,
+                                shape = RoundedCornerShape(6.dp)
+                            )
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Brush,
+                            contentDescription = "Pixel Art",
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+
+                // Info row
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = "${art.gridSize}×${art.gridSize}",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface
@@ -524,6 +656,80 @@ private fun InProgressPuzzleDialog(
     }
 }
 
+@Composable
+private fun PixelArtDialog(
+    art: SavedPixelArt,
+    onResume: () -> Unit,
+    onDelete: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val thumbnail = remember(art.id) {
+        buildPixelArtThumbnail(art)
+    }
+
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Delete artwork?") },
+            text = { Text("This will permanently delete this pixel art. This cannot be undone.") },
+            confirmButton = {
+                Button(
+                    onClick = onDelete,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    } else {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = {
+                Text("${art.gridSize}×${art.gridSize} Pixel Art")
+            },
+            text = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    thumbnail?.let { bmp ->
+                        Image(
+                            bitmap = bmp.asImageBitmap(),
+                            contentDescription = "Artwork preview",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(1f)
+                                .clip(RoundedCornerShape(8.dp)),
+                            contentScale = ContentScale.Fit
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = onResume) {
+                    Text("Resume")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDeleteConfirm = true },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Delete")
+                }
+            }
+        )
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Helper functions
 // ---------------------------------------------------------------------------
@@ -556,6 +762,25 @@ private fun buildThumbnail(puzzle: SavedPuzzle): Bitmap? {
                     AndroidColor.rgb(lightened, lightened, lightened)
                 }
                 bitmap.setPixel(col, row, pixel)
+            }
+        }
+        Bitmap.createScaledBitmap(bitmap, 400, 400, false)
+    } catch (e: Exception) {
+        null
+    }
+}
+
+private fun buildPixelArtThumbnail(art: SavedPixelArt): Bitmap? {
+    return try {
+        val size = art.gridSize
+        val cells = bytesToIntArray(art.cellColors)
+
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        for (row in 0 until size) {
+            for (col in 0 until size) {
+                val idx = row * size + col
+                val argb = cells[idx]
+                bitmap.setPixel(col, row, if (argb != 0) argb else AndroidColor.WHITE)
             }
         }
         Bitmap.createScaledBitmap(bitmap, 400, 400, false)

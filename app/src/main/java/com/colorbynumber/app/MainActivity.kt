@@ -21,6 +21,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import com.colorbynumber.app.data.AppDatabase
 import com.colorbynumber.app.data.GalleryRepository
+import com.colorbynumber.app.data.PixelArtRepository
 import com.colorbynumber.app.data.PlacementEventType
 import com.colorbynumber.app.data.PuzzleRepository
 import com.colorbynumber.app.engine.ColorQuantizer
@@ -43,6 +44,7 @@ enum class Screen {
 class MainActivity : ComponentActivity() {
 
     private lateinit var repository: PuzzleRepository
+    private lateinit var pixelArtRepository: PixelArtRepository
 
     @OptIn(ExperimentalPermissionsApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,6 +54,7 @@ class MainActivity : ComponentActivity() {
 
         val db = AppDatabase.getInstance(this)
         repository = PuzzleRepository(db.savedPuzzleDao(), db.placementEventDao())
+        pixelArtRepository = PixelArtRepository(db.savedPixelArtDao())
 
         setContent {
             ColorByNumberTheme {
@@ -69,6 +72,7 @@ class MainActivity : ComponentActivity() {
                     var historyAutoOpenFirst by remember { mutableStateOf(false) }
                     // Pixel art state
                     var pixelArtState by remember { mutableStateOf<PixelArtState?>(null) }
+                    var activePixelArtId by remember { mutableStateOf<Long?>(null) }
                     var showPixelArtSizeDialog by remember { mutableStateOf(false) }
                     var pixelArtGridSize by remember { mutableIntStateOf(32) }
 
@@ -153,6 +157,7 @@ class MainActivity : ComponentActivity() {
                             }
                             HistoryScreen(
                                 repository = repository,
+                                pixelArtRepository = pixelArtRepository,
                                 autoOpenFirst = historyAutoOpenFirst,
                                 onAutoOpenConsumed = { historyAutoOpenFirst = false },
                                 onResumePuzzle = { id ->
@@ -166,6 +171,20 @@ class MainActivity : ComponentActivity() {
                                             puzzleState = state
                                             puzzleOrigin = Screen.HISTORY
                                             currentScreen = Screen.PUZZLE
+                                        }
+                                        isProcessing = false
+                                    }
+                                },
+                                onResumePixelArt = { id ->
+                                    isProcessing = true
+                                    coroutineScope.launch {
+                                        val state = withContext(Dispatchers.IO) {
+                                            pixelArtRepository.loadState(id)
+                                        }
+                                        if (state != null) {
+                                            pixelArtState = state
+                                            activePixelArtId = id
+                                            currentScreen = Screen.PIXEL_ART
                                         }
                                         isProcessing = false
                                     }
@@ -268,11 +287,52 @@ class MainActivity : ComponentActivity() {
                         }
 
                         Screen.PIXEL_ART -> {
-                            BackHandler { currentScreen = Screen.HOME }
+                            // Default back when not dirty: just go home
+                            BackHandler {
+                                pixelArtState = null
+                                activePixelArtId = null
+                                currentScreen = Screen.HOME
+                            }
                             pixelArtState?.let { state ->
                                 PixelArtScreen(
                                     state = state,
-                                    onBack = { currentScreen = Screen.HOME }
+                                    savedId = activePixelArtId,
+                                    onBack = {
+                                        pixelArtState = null
+                                        activePixelArtId = null
+                                        currentScreen = Screen.HOME
+                                    },
+                                    onSave = {
+                                        // Save without navigating — update or create
+                                        val artId = activePixelArtId
+                                        coroutineScope.launch {
+                                            if (artId == null) {
+                                                val newId = withContext(Dispatchers.IO) {
+                                                    pixelArtRepository.save(state)
+                                                }
+                                                activePixelArtId = newId
+                                            } else {
+                                                withContext(Dispatchers.IO) {
+                                                    pixelArtRepository.update(artId, state)
+                                                }
+                                            }
+                                        }
+                                    },
+                                    onSaveAndBack = {
+                                        val artId = activePixelArtId
+                                        coroutineScope.launch {
+                                            withContext(Dispatchers.IO) {
+                                                if (artId == null) {
+                                                    pixelArtRepository.save(state)
+                                                } else {
+                                                    pixelArtRepository.update(artId, state)
+                                                }
+                                            }
+                                            pixelArtState = null
+                                            activePixelArtId = null
+                                            currentScreen = Screen.HOME
+                                        }
+                                    }
                                 )
                             }
                         }
@@ -332,6 +392,7 @@ class MainActivity : ComponentActivity() {
                                 Button(onClick = {
                                     showPixelArtSizeDialog = false
                                     pixelArtState = PixelArtState(pixelArtGridSize)
+                                    activePixelArtId = null
                                     currentScreen = Screen.PIXEL_ART
                                 }) {
                                     Text("Create")

@@ -1,6 +1,7 @@
 package com.colorbynumber.app.ui.screens
 
 import android.graphics.Color as AndroidColor
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.*
 import androidx.compose.foundation.layout.*
@@ -31,23 +32,74 @@ import kotlin.math.min
 @Composable
 fun PixelArtScreen(
     state: PixelArtState,
-    onBack: () -> Unit
+    savedId: Long?,
+    onBack: () -> Unit,
+    onSave: () -> Unit,
+    onSaveAndBack: () -> Unit
 ) {
     var updateTrigger by remember { mutableIntStateOf(0) }
     var showColorPicker by remember { mutableStateOf(false) }
+    var isDirty by remember { mutableStateOf(false) }
+    var showBackConfirmDialog by remember { mutableStateOf(false) }
 
     // Track recent colors as snapshot for recomposition
     var recentColorsSnapshot by remember { mutableStateOf(state.recentColors.toList()) }
     var selectedColor by remember { mutableStateOf(state.selectedColor) }
     var isEraser by remember { mutableStateOf(state.isEraser) }
 
+    // Intercept back when dirty
+    BackHandler(enabled = isDirty) {
+        showBackConfirmDialog = true
+    }
+
+    if (showBackConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showBackConfirmDialog = false },
+            title = { Text("Save artwork?") },
+            text = { Text("You have unsaved changes. Save your pixel art before leaving?") },
+            confirmButton = {
+                Button(onClick = {
+                    showBackConfirmDialog = false
+                    onSaveAndBack()
+                }) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = {
+                        showBackConfirmDialog = false
+                        onBack()
+                    }) {
+                        Text("Discard")
+                    }
+                    TextButton(onClick = { showBackConfirmDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Pixel Art") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = {
+                        if (isDirty) showBackConfirmDialog = true else onBack()
+                    }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    IconButton(
+                        onClick = {
+                            isDirty = false
+                            onSave()
+                        }
+                    ) {
+                        Icon(Icons.Default.Save, contentDescription = "Save")
                     }
                 }
             )
@@ -68,11 +120,13 @@ fun PixelArtScreen(
                 onCellTap = { row, col ->
                     if (isEraser) {
                         if (state.eraseCell(row, col)) {
+                            isDirty = true
                             updateTrigger++
                         }
                     } else {
                         val color = selectedColor
                         if (color != null && state.colorCell(row, col, color)) {
+                            isDirty = true
                             updateTrigger++
                         }
                     }
