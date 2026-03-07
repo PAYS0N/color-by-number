@@ -20,9 +20,14 @@
 - Add name input when downloading pixel art as JSON
 - Add ability to download pixel art as an image (PNG)
 - Coloring white in pixel art should be visually distinct (white cell = canvas background, so painting white is invisible)
+- evaluate this management system with opus
+- create a testing plan
+- create a difficulty sorting system for public gallery
+- create a plan for a real public gallery (not hosted from github pages, use actual db)
 
 ### Not Done (Needed for Release)
 - Add puzzles to public gallery
+- Make public gallery previews greyscale
 - Update README
 
 ## Project Summary
