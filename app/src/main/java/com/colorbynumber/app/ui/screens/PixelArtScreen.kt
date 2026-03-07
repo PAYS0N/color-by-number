@@ -454,6 +454,16 @@ private fun PixelArtPaletteBar(
 
             Spacer(modifier = Modifier.width(6.dp))
 
+            // Divider between eraser and palette
+            Box(
+                modifier = Modifier
+                    .width(1.dp)
+                    .height(40.dp)
+                    .background(Color.Gray.copy(alpha = 0.3f))
+            )
+
+            Spacer(modifier = Modifier.width(6.dp))
+
             // Color picker button
             Box(
                 modifier = Modifier

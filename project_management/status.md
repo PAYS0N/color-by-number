@@ -29,9 +29,7 @@
 | Consider doing the replay without greyscale | Low | Medium |
 | Make grid size inputs typable (pixel art canvas size dialog, and other numeric inputs) | Low | Low |
 | Add name input when downloading pixel art as JSON | Low | Low |
-| Cells should not be colorable in greyscale mode | Low | Low |
 | Create a testing plan | Low | Low |
-| Add visual indicator when a color is fully complete | Low | Low |
 | Reduce gridSize to fit the sparse json on download (might already happen) | Low | Low |
 
 
@@ -44,7 +42,4 @@
 | Add downloadable image gif | Medium | High |
 | Create a difficulty sorting system for public gallery | Medium | Medium |
 | Persist pixel art color choices in db | Medium | Medium |
-| Reduce the amount of non-puzzle details on public gallery cards | Medium | Low |
-| Make public gallery previews greyscale | Medium | Low |
-| Vertically align or fully separate the trash icon and the color selections | Low | Low |
 

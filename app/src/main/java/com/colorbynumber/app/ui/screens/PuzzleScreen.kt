@@ -10,8 +10,7 @@ import android.os.Vibrator
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -76,11 +75,6 @@ fun PuzzleScreen(
     LaunchedEffect(preventOverwrite) {
         AppSettings.preventOverwrite = preventOverwrite
         puzzleState.preventOverwrite = preventOverwrite
-    }
-
-    // Build visible palette (exclude completed colors)
-    val visiblePalette = remember(completedColors, updateTrigger) {
-        puzzleState.paletteOrder.filter { it !in completedColors }
     }
 
     // Map colorIdx -> 1-based display number by paletteOrder position
@@ -224,7 +218,7 @@ fun PuzzleScreen(
             // Palette bar
             PaletteBar(
                 puzzleState = puzzleState,
-                visiblePalette = visiblePalette,
+                completedColors = completedColors,
                 selectedColorIndex = selectedColorIndex,
                 isEraser = isEraser,
                 colorDisplayNumbers = colorDisplayNumbers,
@@ -258,6 +252,13 @@ private fun PuzzleGrid(
     var scale by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
 
+    // Greyscale mode: cells are not colorable when zoomed out (numbers not visible)
+    val showNumbersThreshold = remember(gridSize) {
+        val t = ((gridSize - 20f) / 80f).coerceIn(0f, 1f)
+        1.2f + t * 1.3f
+    }
+    val isGreyscaleMode by remember { derivedStateOf { scale <= showNumbersThreshold } }
+
     // Paint mode indicator: screen position of the active touch, null when not painting
     var paintIndicatorPos by remember { mutableStateOf<Offset?>(null) }
 
@@ -281,7 +282,11 @@ private fun PuzzleGrid(
     val spriteCellSizeKey = remember { intArrayOf(-1) }
 
     // Always use the latest callback without restarting the gesture coroutine
-    val currentOnCellTap by rememberUpdatedState(onCellTap)
+    val rawOnCellTap by rememberUpdatedState(onCellTap)
+    // Guard: no coloring in greyscale (zoomed-out) mode
+    val currentOnCellTap: (Int, Int) -> Unit = { r, c ->
+        if (!isGreyscaleMode) rawOnCellTap(r, c)
+    }
 
     Canvas(
         modifier = Modifier
@@ -450,10 +455,7 @@ private fun PuzzleGrid(
         val gridOriginX = (size.width - gridPixelSize) / 2f + offset.x
         val gridOriginY = (size.height - gridPixelSize) / 2f + offset.y
 
-        // Threshold scales linearly with grid size: 1.2 at 20×20, 2.5 at 100×100
-        val t = ((gridSize - 20f) / 80f).coerceIn(0f, 1f)
-        val showNumbersThreshold = 1.2f + t * 1.3f
-        val showNumbers = scale > showNumbersThreshold
+        val showNumbers = !isGreyscaleMode
 
         if (!showNumbers) {
             // ── Zoomed-out fast path: single drawImage from cached bitmap ──────────
@@ -712,7 +714,7 @@ private fun PuzzleGrid(
 @Composable
 private fun PaletteBar(
     puzzleState: PuzzleState,
-    visiblePalette: List<Int>,
+    completedColors: Set<Int>,
     selectedColorIndex: Int?,
     isEraser: Boolean,
     colorDisplayNumbers: Map<Int, Int>,
@@ -753,51 +755,76 @@ private fun PaletteBar(
 
             Spacer(modifier = Modifier.width(8.dp))
 
+            // Divider between eraser and palette
+            Box(
+                modifier = Modifier
+                    .width(1.dp)
+                    .height(40.dp)
+                    .background(Color.Gray.copy(alpha = 0.3f))
+            )
+
+            Spacer(modifier = Modifier.width(8.dp))
+
             // Scrollable color palette
-            LazyRow(
-                modifier = Modifier.weight(1f),
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                items(visiblePalette) { colorIdx ->
-                    val rgb = puzzleState.palette[colorIdx]
-                    val color = Color(
-                        AndroidColor.red(rgb),
-                        AndroidColor.green(rgb),
-                        AndroidColor.blue(rgb)
-                    )
-                    val isSelected = selectedColorIndex == colorIdx && !isEraser
-                    val remaining = puzzleState.remainingForColor(colorIdx)
-
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
+                puzzleState.paletteOrder.forEach { colorIdx ->
+                    val isCompleted = colorIdx in completedColors
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = !isCompleted,
+                        exit = androidx.compose.animation.slideOutVertically(
+                            targetOffsetY = { -it },
+                            animationSpec = androidx.compose.animation.core.tween(300)
+                        ) + androidx.compose.animation.fadeOut(
+                            animationSpec = androidx.compose.animation.core.tween(300)
+                        ) + androidx.compose.animation.shrinkHorizontally(
+                            animationSpec = androidx.compose.animation.core.tween(300)
+                        )
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(color)
-                                .border(
-                                    width = if (isSelected) 3.dp else 1.dp,
-                                    color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Gray,
-                                    shape = RoundedCornerShape(8.dp)
-                                )
-                                .clickable { onSelectColor(colorIdx) },
-                            contentAlignment = Alignment.Center
+                        val rgb = puzzleState.palette[colorIdx]
+                        val color = Color(
+                            AndroidColor.red(rgb),
+                            AndroidColor.green(rgb),
+                            AndroidColor.blue(rgb)
+                        )
+                        val isSelected = selectedColorIndex == colorIdx && !isEraser
+                        val remaining = puzzleState.remainingForColor(colorIdx)
+
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            // Show the palette number
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(color)
+                                    .border(
+                                        width = if (isSelected) 3.dp else 1.dp,
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Gray,
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                    .clickable { onSelectColor(colorIdx) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                // Show the palette number
+                                Text(
+                                    text = "${colorDisplayNumbers[colorIdx] ?: (colorIdx + 1)}",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isColorLight(rgb)) Color.Black else Color.White
+                                )
+                            }
+                            // Remaining count
                             Text(
-                                text = "${colorDisplayNumbers[colorIdx] ?: (colorIdx + 1)}",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isColorLight(rgb)) Color.Black else Color.White
+                                text = "$remaining",
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                             )
                         }
-                        // Remaining count
-                        Text(
-                            text = "$remaining",
-                            fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                        )
                     }
                 }
             }

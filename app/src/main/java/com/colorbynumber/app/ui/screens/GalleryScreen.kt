@@ -138,7 +138,7 @@ private fun GalleryPuzzleCard(
                 }
             }
 
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 8.dp, vertical = 6.dp)
@@ -148,11 +148,6 @@ private fun GalleryPuzzleCard(
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = "${puzzle.gridSize}×${puzzle.gridSize}",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                 )
             }
         }
@@ -168,7 +163,11 @@ private fun buildGalleryThumbnail(puzzle: GalleryPuzzle): Bitmap? {
                 val idx = row * size + col
                 val colorIdx = puzzle.targetColors[idx]
                 val rgb = puzzle.palette[colorIdx]
-                bitmap.setPixel(col, row, rgb or (0xFF shl 24))
+                val r = (rgb shr 16) and 0xFF
+                val g = (rgb shr 8) and 0xFF
+                val b = rgb and 0xFF
+                val grey = (0.299 * r + 0.587 * g + 0.114 * b).toInt().coerceIn(0, 255)
+                bitmap.setPixel(col, row, (0xFF shl 24) or (grey shl 16) or (grey shl 8) or grey)
             }
         }
         Bitmap.createScaledBitmap(bitmap, 400, 400, false)
