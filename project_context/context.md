@@ -177,7 +177,7 @@ Color by Number is an Android app that converts photos into interactive color-by
 
 **CompletionScreen**: Celebration screen showing final image (grid colored by targetColors). Play Replay button to view replay animation. Clicking either closes to transition to History screen with auto-open-first flag set.
 
-**HistoryScreen**: Combined grid of saved puzzles and pixel art (newest first), each showing thumbnail preview. Puzzle cards show a completion badge or progress percentage. Pixel art cards show a brush badge. Tapping a puzzle opens InProgressPuzzleDialog (Resume/Delete) or CompletedPuzzleDialog (replay/download/delete). Tapping pixel art opens PixelArtDialog (Resume/Delete with confirmation). Both dialogs match Material 3 style.
+**HistoryScreen**: Combined grid of saved puzzles and pixel art (newest first), each showing thumbnail preview. Puzzle cards show a completion badge or progress percentage. Pixel art cards show a brush badge. Tapping a puzzle opens InProgressPuzzleDialog (Resume/Delete) or CompletedPuzzleDialog (replay/download/delete). Tapping pixel art opens PixelArtDialog (Resume/Delete with confirmation, plus a Download icon button that exports sparse JSON to the Downloads folder). Both dialogs match Material 3 style.
 
 **GalleryScreen**: Fetches public gallery via GalleryRepository.fetchPuzzles() on load. Displays puzzles as grid. User selects one, converted to PuzzleState via toPuzzleState(), and gameplay starts with puzzleOrigin = Screen.GALLERY (so back returns here). Network errors gracefully degrade to empty list.
 

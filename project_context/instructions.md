@@ -6,13 +6,9 @@
 
 - The source files in this project are the single source of truth. Always read them directly rather than relying on conversation memory.
 
-- Every feature addition or change should be reflected in status.md. 
-
 - When asked to create a context document, read cdoc.md.
 
 - When asked to create project management files, create them in the project_context directory in root.
-
-- When files are created or deleted, update manifest.md
 
 - When asked to create a prompt, read prompting.md.
 
@@ -24,7 +20,7 @@ Run this checklist after the user has declared a task done:
 
 1. **status.md** — move the item from Open/Active to Closed; clear Active Work; add any newly discovered open items.
 2. **manifest.md** — add a row for every new file created; remove rows for deleted files.
-3. **context.md** — update only the sections affected by the change, using the table below. Do not rewrite unaffected sections.
+3. **context.md** — Read cdoc.md. update only the sections affected by the change, using the table below. Do not rewrite unaffected sections.
 
 | Change type | Sections to update in context.md |
 |---|---|

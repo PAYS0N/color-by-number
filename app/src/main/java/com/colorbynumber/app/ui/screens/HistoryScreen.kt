@@ -668,6 +668,9 @@ private fun PixelArtDialog(
     }
 
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var saveStatus by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
     if (showDeleteConfirm) {
         AlertDialog(
@@ -708,6 +711,34 @@ private fun PixelArtDialog(
                                 .clip(RoundedCornerShape(8.dp)),
                             contentScale = ContentScale.Fit
                         )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        saveStatus?.let {
+                            Text(
+                                text = it,
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                                modifier = Modifier.padding(end = 4.dp)
+                            )
+                        }
+                        IconButton(onClick = {
+                            coroutineScope.launch {
+                                val ok = withContext(Dispatchers.IO) {
+                                    savePixelArtJson(context, art)
+                                }
+                                saveStatus = if (ok) "Saved!" else "Failed"
+                            }
+                        }) {
+                            Icon(
+                                Icons.Default.Download,
+                                contentDescription = "Export JSON"
+                            )
+                        }
                     }
                 }
             },
@@ -828,6 +859,65 @@ private fun bytesToIntArray(bytes: ByteArray): IntArray {
     val result = IntArray(intBuf.remaining())
     intBuf.get(result)
     return result
+}
+
+private fun buildPixelArtJson(art: SavedPixelArt): String {
+    val cells = bytesToIntArray(art.cellColors)
+    val size = art.gridSize
+    val sb = StringBuilder()
+    sb.append("{\"gridSize\":").append(size)
+    sb.append(",\"name\":\"Pixel Art\"")
+    sb.append(",\"data\":[")
+    var first = true
+    for (row in 0 until size) {
+        for (col in 0 until size) {
+            val argb = cells[row * size + col]
+            if (argb != 0) {
+                val r = (argb shr 16) and 0xFF
+                val g = (argb shr 8) and 0xFF
+                val b = argb and 0xFF
+                val hex = "#%02X%02X%02X".format(r, g, b)
+                if (!first) sb.append(",")
+                sb.append("{\"x\":").append(col).append(",\"y\":").append(row)
+                sb.append(",\"color\":\"").append(hex).append("\"}")
+                first = false
+            }
+        }
+    }
+    sb.append("]}")
+    return sb.toString()
+}
+
+private fun savePixelArtJson(context: Context, art: SavedPixelArt): Boolean {
+    return try {
+        val json = buildPixelArtJson(art)
+        val filename = "pixel_art_${System.currentTimeMillis()}.json"
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val values = ContentValues().apply {
+                put(MediaStore.Downloads.DISPLAY_NAME, filename)
+                put(MediaStore.Downloads.MIME_TYPE, "application/json")
+                put(MediaStore.Downloads.RELATIVE_PATH, "Download")
+                put(MediaStore.Downloads.IS_PENDING, 1)
+            }
+            val uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                ?: return false
+            context.contentResolver.openOutputStream(uri)?.use { out ->
+                out.write(json.toByteArray())
+            }
+            values.clear()
+            values.put(MediaStore.Downloads.IS_PENDING, 0)
+            context.contentResolver.update(uri, values, null, null)
+        } else {
+            val dir = android.os.Environment.getExternalStoragePublicDirectory(
+                android.os.Environment.DIRECTORY_DOWNLOADS
+            )
+            dir.mkdirs()
+            java.io.File(dir, filename).writeText(json)
+        }
+        true
+    } catch (e: Exception) {
+        false
+    }
 }
 
 private fun saveImageToGallery(context: Context, bitmap: Bitmap): Boolean {

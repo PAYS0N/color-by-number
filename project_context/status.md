@@ -18,12 +18,16 @@
 - Add color autocomplete feature
 - Remove greyscale preview from pixel art creation (canvas size dialog)
 - Make grid lines thicker in all play screens (PuzzleScreen, PixelArtScreen)
+- Make grid size inputs typable (pixel art canvas size dialog, and other numeric inputs)
+- Add name input when downloading pixel art as JSON
+- Add ability to download pixel art as an image (PNG)
+- Clarify JSON download button (distinguish from image download — label or icon change)
+- Add X/close button to InProgressPuzzleDialog and PixelArtDialog
 
 ### Not Done (Needed for Release)
 - Add puzzles to public gallery
 - Rework home page
 - Update README
-- Make completed puzzles exportable
 
 ## Closed Items
 
@@ -48,6 +52,8 @@
 - Add color quantizer (k-means clustering for palette reduction)
 - Add save/load puzzle progress (IN_PROGRESS/COMPLETED states)
 - Make pixel art saveable
+- Make pixel art exportable in sparse JSON format for download
+- Make completed puzzles exportable
 
 ---
 
