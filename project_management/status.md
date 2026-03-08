@@ -29,7 +29,6 @@
 | Consider doing the replay without greyscale | Low | Medium |
 | Make grid size inputs typable (pixel art canvas size dialog, and other numeric inputs) | Low | Low |
 | Add name input when downloading pixel art as JSON | Low | Low |
-| Create a testing plan | Low | Low |
 | Reduce gridSize to fit the sparse json on download (might already happen) | Low | Low |
 
 

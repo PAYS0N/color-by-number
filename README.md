@@ -4,9 +4,15 @@ Turn any photo into a color-by-number puzzle. Take a photo or pick one from your
 
 This project is open source — feel free to fork it or open a pull request. The only condition is that any distributed version must remain free and ad-free.
 
-This app was written entirely using Claude Code with no manual coding. As a result, the codebase may be difficult to work with or understand.
+This app was written entirely using Claude Code with no manual coding. The project uses a structured Claude Code workflow to keep the codebase navigable:
 
-## Publish to Google Play Store
+- **[CLAUDE.md](CLAUDE.md)** — project rules and conventions that Claude reads at the start of every session
+- **[project_management/manifest.md](project_management/manifest.md)** — a full file listing with descriptions; Claude updates this whenever files are added or removed
+- **[project_management/status.md](project_management/status.md)** — open and active work items tracked across sessions
+- **[project_management/cdocs/](project_management/cdocs/)** — context documents covering the app's architecture, data model, UI, pipeline, and settings; Claude updates only the affected file after each change
+- **[project_management/prompting.md](project_management/prompting.md)** — template for generating task prompts that include all relevant context for a new session
+
+## Instructions to publish to Google Play Store (remove later)
 
 ### One-time setup
 1. Create a Google Play Developer account ($25 one-time fee) at https://play.google.com/console

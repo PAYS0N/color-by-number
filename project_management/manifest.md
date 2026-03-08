@@ -30,6 +30,7 @@ Color by Number is an Android app (Kotlin, Jetpack Compose, Material 3) that con
 | [project_management/cdocs/data.md](cdocs/data.md) | Data model entities, persistence/event recording, and public gallery |
 | [project_management/cdocs/settings.md](cdocs/settings.md) | Global and per-puzzle settings |
 | [project_management/cdocs/ui.md](cdocs/ui.md) | UI screen descriptions and critical file paths |
+| [project_management/testing-plan.md](testing-plan.md) | Prioritized unit testing plan: test cases, frameworks, and implementation order |
 | [project_management/cdoc.md](cdoc.md) | Template instructions for generating context documents |
 | [project_management/prompting.md](prompting.md) | Template instructions for generating task prompts |
 

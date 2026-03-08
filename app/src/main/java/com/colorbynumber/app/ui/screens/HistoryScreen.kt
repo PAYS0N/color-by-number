@@ -423,6 +423,7 @@ private fun CompletedPuzzleDialog(
     var loadError by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var saveStatus by remember { mutableStateOf<String?>(null) }
+    var jsonSaveStatus by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
@@ -490,6 +491,28 @@ private fun CompletedPuzzleDialog(
                             Text("Delete")
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
+                            jsonSaveStatus?.let {
+                                Text(
+                                    text = it,
+                                    fontSize = 12.sp,
+                                    color = Color.White.copy(alpha = 0.8f),
+                                    modifier = Modifier.padding(end = 4.dp)
+                                )
+                            }
+                            IconButton(onClick = {
+                                coroutineScope.launch {
+                                    val ok = withContext(Dispatchers.IO) {
+                                        savePuzzleJson(context, puzzle)
+                                    }
+                                    jsonSaveStatus = if (ok) "Saved!" else "Failed"
+                                }
+                            }) {
+                                Icon(
+                                    Icons.Default.Code,
+                                    contentDescription = "Export JSON",
+                                    tint = Color.White
+                                )
+                            }
                             saveStatus?.let {
                                 Text(
                                     text = it,
@@ -904,6 +927,53 @@ private fun savePixelArtJson(context: Context, art: SavedPixelArt): Boolean {
     return try {
         val json = buildPixelArtJson(art)
         val filename = "pixel_art_${System.currentTimeMillis()}.json"
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val values = ContentValues().apply {
+                put(MediaStore.Downloads.DISPLAY_NAME, filename)
+                put(MediaStore.Downloads.MIME_TYPE, "application/json")
+                put(MediaStore.Downloads.RELATIVE_PATH, "Download")
+                put(MediaStore.Downloads.IS_PENDING, 1)
+            }
+            val uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                ?: return false
+            context.contentResolver.openOutputStream(uri)?.use { out ->
+                out.write(json.toByteArray())
+            }
+            values.clear()
+            values.put(MediaStore.Downloads.IS_PENDING, 0)
+            context.contentResolver.update(uri, values, null, null)
+        } else {
+            val dir = android.os.Environment.getExternalStoragePublicDirectory(
+                android.os.Environment.DIRECTORY_DOWNLOADS
+            )
+            dir.mkdirs()
+            java.io.File(dir, filename).writeText(json)
+        }
+        true
+    } catch (e: Exception) {
+        false
+    }
+}
+
+private fun buildPuzzleJson(puzzle: SavedPuzzle): String {
+    val palette = puzzle.paletteJson.split(",").map { it.trim().toInt() }
+    val paletteOrder = puzzle.paletteOrderJson.split(",").map { it.trim().toInt() }
+    val targetColors = bytesToIntArray(puzzle.targetColors)
+    val sb = StringBuilder()
+    sb.append("{")
+    sb.append("\"name\":\"puzzle-${puzzle.id}\",")
+    sb.append("\"gridSize\":${puzzle.gridSize},")
+    sb.append("\"palette\":[").append(palette.joinToString(",")).append("],")
+    sb.append("\"paletteOrder\":[").append(paletteOrder.joinToString(",")).append("],")
+    sb.append("\"targetColors\":[").append(targetColors.joinToString(",")).append("]")
+    sb.append("}")
+    return sb.toString()
+}
+
+private fun savePuzzleJson(context: Context, puzzle: SavedPuzzle): Boolean {
+    return try {
+        val json = buildPuzzleJson(puzzle)
+        val filename = "puzzle_${puzzle.id}_${System.currentTimeMillis()}.json"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val values = ContentValues().apply {
                 put(MediaStore.Downloads.DISPLAY_NAME, filename)
