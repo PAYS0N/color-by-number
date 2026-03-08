@@ -41,5 +41,4 @@
 | Add puzzles to public gallery | High | Medium |
 | Add downloadable image gif | Medium | High |
 | Create a difficulty sorting system for public gallery | Medium | Medium |
-| Persist pixel art color choices in db | Medium | Medium |
 

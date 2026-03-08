@@ -14,7 +14,9 @@ class PixelArtRepository(
     suspend fun save(state: PixelArtState): Long {
         val entity = SavedPixelArt(
             gridSize = state.gridSize,
-            cellColors = intArrayToBytes(state.cells)
+            cellColors = intArrayToBytes(state.cells),
+            selectedColor = state.selectedColor,
+            recentColors = state.recentColors.takeIf { it.isNotEmpty() }?.let { intArrayToBytes(it.toIntArray()) }
         )
         return dao.insert(entity)
     }
@@ -25,17 +27,24 @@ class PixelArtRepository(
         dao.update(
             existing.copy(
                 cellColors = intArrayToBytes(state.cells),
+                selectedColor = state.selectedColor,
+                recentColors = state.recentColors.takeIf { it.isNotEmpty() }?.let { intArrayToBytes(it.toIntArray()) },
                 updatedAt = System.currentTimeMillis()
             )
         )
     }
 
-    /** Load cell colors from a saved entry into a new PixelArtState. */
+    /** Load cell colors and color context from a saved entry into a new PixelArtState. */
     suspend fun loadState(id: Long): PixelArtState? {
         val entity = dao.getById(id) ?: return null
         val state = PixelArtState(entity.gridSize)
         val cells = bytesToIntArray(entity.cellColors)
         cells.copyInto(state.cells)
+        entity.selectedColor?.let { state.selectedColor = it }
+        entity.recentColors?.let { bytes ->
+            val colors = bytesToIntArray(bytes)
+            state.recentColors.addAll(colors.toList())
+        }
         return state
     }
 

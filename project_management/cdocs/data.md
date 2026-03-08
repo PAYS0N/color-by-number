@@ -44,6 +44,8 @@
 - `id`: auto-generated primary key (Long)
 - `gridSize`: canvas width/height (Int)
 - `cellColors`: ByteArray-encoded IntArray of ARGB values, row-major; 0 = empty (renders as white)
+- `selectedColor`: nullable Int (ARGB); the color selected at last save, or null if none
+- `recentColors`: nullable ByteArray-encoded IntArray of ARGB ints, most recent first; null if no recent colors
 - `createdAt`, `updatedAt`: timestamps (milliseconds)
 - Custom equals/hashCode by id only
 

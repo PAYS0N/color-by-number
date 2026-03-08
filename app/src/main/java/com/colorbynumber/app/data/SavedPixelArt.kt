@@ -13,6 +13,12 @@ data class SavedPixelArt(
     /** ByteArray-encoded IntArray of ARGB values, row-major. 0 = empty (white). */
     val cellColors: ByteArray,
 
+    /** Currently selected color (ARGB), or null if none was selected. */
+    val selectedColor: Int? = null,
+
+    /** Recent colors used, encoded as ByteArray of ARGB ints (most recent first). Null if empty. */
+    val recentColors: ByteArray? = null,
+
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 ) {
