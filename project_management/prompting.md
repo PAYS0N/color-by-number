@@ -1,5 +1,5 @@
 Compose a prompt for a new session task to do the indicated work item. 
-Include all the context someone would need, both practically . 
+Include all the context someone would need, both practically (ex point to a specific kotlin file) and management wise (point to any helpful cdocs). 
 The prompt should likely include an instruction to read project_management/manifest.md. 
 The prompt should indicate the following workflow item in addition to the task definition: 
 
