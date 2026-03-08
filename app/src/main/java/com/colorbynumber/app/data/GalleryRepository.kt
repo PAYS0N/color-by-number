@@ -21,7 +21,7 @@ object GalleryRepository {
     private const val BASE_URL = "https://pays0n.github.io/color-by-number/data"
 
     suspend fun fetchPuzzles(): List<GalleryPuzzle> = withContext(Dispatchers.IO) {
-        val puzzleFiles = listOf("puzzle1.json", "puzzle2.json", "puzzle3.json", "puzzle4.json", "puzzle5.json", "puzzle6.json")
+        val puzzleFiles = listOf("puzzle1.json", "puzzle2.json", "puzzle3.json", "puzzle4.json", "puzzle5.json", "puzzle6.json", "puzzle7.json")
         puzzleFiles.mapNotNull { file ->
             try {
                 val url = "$BASE_URL/$file"
