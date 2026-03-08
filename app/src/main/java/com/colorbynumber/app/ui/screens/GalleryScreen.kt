@@ -45,7 +45,7 @@ fun GalleryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Explore") }
+                title = { Text("Explore (beta)") }
             )
         }
     ) { padding ->
