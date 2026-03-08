@@ -36,8 +36,5 @@
 | Description | Severity | Difficulty |
 |---|---|---|
 | Update README | High | Low |
-| Add puzzles to public gallery | High | Medium |
 | Add downloadable image gif | Medium | High |
-| Create a difficulty sorting system for public gallery | Medium | Medium |
-| Add MIT licence to github | High | Low |
 

@@ -2,8 +2,6 @@
 
 Turn any photo into a color-by-number puzzle. Take a photo or pick one from your gallery, choose a grid size and color detail level, and the app pixelates and quantizes it into a numbered grid for you to fill in. Features include pinch-to-zoom, a scrolling palette bar that hides completed colors, prevent-errors and prevent-overwrite modes, a color navigator arrow, saved puzzles with replay, and a public gallery of pre-made puzzles.
 
-This project is open source — feel free to fork it or open a pull request. The only condition is that any distributed version must remain free and ad-free.
-
 This app was written entirely using Claude Code with no manual coding. The project uses a structured Claude Code workflow to keep the codebase navigable:
 
 - **[CLAUDE.md](CLAUDE.md)** — project rules and conventions that Claude reads at the start of every session
