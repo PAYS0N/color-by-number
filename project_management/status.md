@@ -17,7 +17,6 @@
 |---|---|---|
 | Make pixel art grid auto size, starting at 20x20, growing when adjacent 20x20 cells are used, no more grid size selection at start | High | High |
 | Merge duplicated gesture handler logic in PuzzleScreen and PixelArtScreen into a shared utility | Medium | Medium |
-| Add ability to download completed images as json | Medium | Medium |
 | When exiting a started public gallery puzzle, move to history | Medium | Medium |
 | Create a plan for a real public gallery (not hosted from github pages, use actual db) | Medium | Medium |
 | Add ability to download pixel art as an image (PNG) | Medium | Medium |
@@ -40,4 +39,5 @@
 | Add puzzles to public gallery | High | Medium |
 | Add downloadable image gif | Medium | High |
 | Create a difficulty sorting system for public gallery | Medium | Medium |
+| Add MIT licence to github | High | Low |
 
